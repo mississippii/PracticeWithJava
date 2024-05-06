@@ -7,6 +7,10 @@ public class Account {
         this.accountNumber = accountNumber;
         this.balance = balance;
     }
+    public static void getobject(){
+        System.out.println("hello..form super class");
+    }
+    public double getBalance() {return balance;}
     public void deposit(double amount) {
         balance+=amount;
         System.out.printf("{0} take deposit to your account.\n",amount);

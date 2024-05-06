@@ -1,8 +1,6 @@
 package org.example;
 
-import org.OOP.Cat;
-import org.OOP.Product;
-import org.OOP.ShoppingCart;
+import org.OOP.*;
 
 import javax.xml.catalog.Catalog;
 import java.util.StringJoiner;
@@ -11,7 +9,15 @@ import java.util.StringJoiner;
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 public class Main {
     public static void main(String[] args) {
-        Cat cat  = new Cat();
-        cat.makeSound();
+        Liquid genericLequid = new Liquid();
+        Liquid coffee = new Coffee();
+        Liquid milk = new Milk();
+        Cup cup = new Cup();
+        coffee.swirl(true);
+        cup.addLiquid(coffee);
+        cup.addLiquid(milk);
+        cup.addLiquid(genericLequid);
+        cup.mixed();
+
     }
 }
