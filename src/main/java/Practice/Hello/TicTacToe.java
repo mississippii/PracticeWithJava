@@ -1,4 +1,4 @@
-package org.example;
+package Practice.Hello;
 
 import java.util.Arrays;
 import java.util.Scanner;

@@ -1,4 +1,4 @@
-package org.OOP.Abstraction;
+package Practice.OOP.Abstraction;
 
 public abstract class Animal {
     private final String name;
@@ -7,6 +7,8 @@ public abstract class Animal {
         this.name = name;
         this.leg = leg;
     }
+
+    public abstract String getDiets();
     @Override
     public String toString(){
         return (name+" has "+leg+" legs ");

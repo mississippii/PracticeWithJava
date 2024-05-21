@@ -1,4 +1,4 @@
-package org.OOP;
+package Practice.OOP;
 
 public class CreditCard {
     private final long number;

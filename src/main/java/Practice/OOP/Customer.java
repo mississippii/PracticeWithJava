@@ -1,4 +1,4 @@
-package org.OOP;
+package Practice.OOP;
 
 public class Customer {
     private String name;

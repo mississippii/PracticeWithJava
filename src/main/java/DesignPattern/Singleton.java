@@ -1,4 +1,4 @@
-package org.example;
+package DesignPattern;
 
 public class Singleton {
     private static Singleton instance;

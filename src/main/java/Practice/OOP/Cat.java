@@ -1,4 +1,4 @@
-package org.OOP;
+package Practice.OOP;
 
 import org.w3c.dom.ls.LSOutput;
 

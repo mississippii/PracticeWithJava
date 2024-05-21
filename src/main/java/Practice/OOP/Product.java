@@ -1,6 +1,4 @@
-package org.OOP;
-
-import java.awt.*;
+package Practice.OOP;
 
 public class Product {
     private static int SHIPPING_RATE = 5;
@@ -8,7 +6,7 @@ public class Product {
 
     private final String name;
     private final int weight;
-    private final Dimension dimension;
+    private final Practice.OOP.Dimension dimension;
     private int price;
     private int discount;
 

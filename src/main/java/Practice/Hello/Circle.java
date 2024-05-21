@@ -1,6 +1,4 @@
-package org.example;
-
-import java.awt.*;
+package Practice.Hello;
 
 public class Circle {
     private int raeius;

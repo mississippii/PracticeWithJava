@@ -1,4 +1,4 @@
-package org.OOP;
+package Practice.OOP;
 
 public class SavingAccount extends Account {
     private final double interestRate;

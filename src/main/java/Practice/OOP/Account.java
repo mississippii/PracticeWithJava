@@ -1,4 +1,4 @@
-package org.OOP;
+package Practice.OOP;
 
 public class Account {
     private final String accountNumber;
