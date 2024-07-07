@@ -1,4 +1,4 @@
-package Practice.Hello;
+package OOP.Encapsulation;
 
 import java.util.Arrays;
 import java.util.Scanner;

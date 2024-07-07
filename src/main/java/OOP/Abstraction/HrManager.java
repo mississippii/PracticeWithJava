@@ -1,11 +1,11 @@
-package Practice.Abstraction;
+package OOP.Abstraction;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class HrManager {
-    private List<Client> clients = new ArrayList<>();
-    private PayCalculator calculator= new PayCalculator();
+    private final List<Client> clients = new ArrayList<>();
+    private final PayCalculator calculator= new PayCalculator();
     public void addClient(Client client){
         clients.add(client);
     }

@@ -1,4 +1,4 @@
-package Practice.OOP;
+package OOP.Plymorphism;
 
 public class SavingAccount extends Account {
     private final double interestRate;

@@ -1,4 +1,4 @@
-package Practice.OOP.Abstraction;
+package OOP.Inheritance;
 
 public abstract class Animal {
     private final String name;

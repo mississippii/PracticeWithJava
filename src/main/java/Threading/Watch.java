@@ -5,16 +5,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.concurrent.TimeUnit;
 
 public class Watch implements Runnable{
-    private boolean threadRunning=true;
+    private volatile boolean threadRunning=true;
     @Override
     public void run() {
-        while(true) {
+        while(threadRunning) {
             printCurrentTime();
             sleepOnesecond();
-            if(!threadRunning) {
-                System.out.println("Thread is interrupted");
-                return;
-            }
         }
     }
     public void shutdown(){

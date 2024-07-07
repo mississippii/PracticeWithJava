@@ -1,7 +1,9 @@
-package Practice.OOP.Abstraction;
+package OOP.Abstraction;
+
+import OOP.Inheritance.Animal;
 
 public class Zoo {
-    private Animal []animals;
+    private Animal[]animals;
     public Zoo(Animal []animals){
         this.animals = animals;
     }

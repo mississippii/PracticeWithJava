@@ -1,6 +1,6 @@
-package Practice.OOP;
+package OOP.Plymorphism;
 
-public class Coffee extends Liquid{
+public class Coffee extends Liquid {
     @Override
     public void swirl(boolean clockwise){
         System.out.println("swirling coffee");

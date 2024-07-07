@@ -1,4 +1,4 @@
-package Practice.OOP;
+package OOP.Encapsulation;
 
 import java.util.Arrays;
 

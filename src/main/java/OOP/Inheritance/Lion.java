@@ -1,6 +1,6 @@
-package Practice.OOP.Abstraction;
+package OOP.Inheritance;
 
-public class Lion extends Animal{
+public class Lion extends Animal {
     public Lion(){
         super("Lion",4);
     }

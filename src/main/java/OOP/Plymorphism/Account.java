@@ -1,4 +1,4 @@
-package Practice.OOP;
+package OOP.Plymorphism;
 
 public class Account {
     private final String accountNumber;

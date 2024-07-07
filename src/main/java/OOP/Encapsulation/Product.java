@@ -1,4 +1,4 @@
-package Practice.OOP;
+package OOP.Encapsulation;
 
 public class Product {
     private static int SHIPPING_RATE = 5;
@@ -6,7 +6,7 @@ public class Product {
 
     private final String name;
     private final int weight;
-    private final Practice.OOP.Dimension dimension;
+    private final Dimension dimension;
     private int price;
     private int discount;
 

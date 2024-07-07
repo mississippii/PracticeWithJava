@@ -1,4 +1,4 @@
-package Practice.OOP;
+package OOP.Encapsulation;
 
 public class Dimension {
     private final int height;

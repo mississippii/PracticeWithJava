@@ -1,4 +1,4 @@
-package Practice.OOP;
+package OOP.Encapsulation;
 
 public class Customer {
     private String name;

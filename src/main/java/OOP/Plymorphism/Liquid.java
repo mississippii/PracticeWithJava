@@ -1,4 +1,4 @@
-package Practice.OOP;
+package OOP.Plymorphism;
 
 public class Liquid {
     public void swirl(boolean clockWise){

@@ -1,4 +1,4 @@
-package Practice.Abstraction;
+package OOP.Abstraction;
 
 public class Client {
     public final String name;

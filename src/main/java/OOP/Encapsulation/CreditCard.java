@@ -1,4 +1,4 @@
-package Practice.OOP;
+package OOP.Encapsulation;
 
 public class CreditCard {
     private final long number;

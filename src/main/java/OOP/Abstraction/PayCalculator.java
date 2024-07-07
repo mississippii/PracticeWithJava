@@ -1,4 +1,4 @@
-package Practice.Abstraction;
+package OOP.Abstraction;
 
 public class PayCalculator {
     private static final double HOURLY_RATE = 70.0;
