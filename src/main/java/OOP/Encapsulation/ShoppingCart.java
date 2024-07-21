@@ -1,4 +1,6 @@
-package OOP.Abstraction;
+package OOP.Encapsulation;
+
+import OOP.Inheritance.Product;
 
 import java.util.ArrayList;
 

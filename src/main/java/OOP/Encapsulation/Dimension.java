@@ -1,4 +1,4 @@
-package OOP.Abstraction;
+package OOP.Encapsulation;
 
 public class Dimension {
     private final int height;

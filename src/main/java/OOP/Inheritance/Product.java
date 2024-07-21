@@ -1,4 +1,6 @@
-package OOP.Abstraction;
+package OOP.Inheritance;
+
+import OOP.Encapsulation.Dimension;
 
 public class Product {
     public static final int SHIPPING_RATE =5;
