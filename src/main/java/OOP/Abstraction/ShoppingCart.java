@@ -1,6 +1,4 @@
-package OOP.Plymorphism;
-
-import OOP.Encapsulation.Product;
+package OOP.Abstraction;
 
 import java.util.ArrayList;
 
@@ -12,7 +10,7 @@ public class ShoppingCart {
     }
     public int getTotalPrice() {
         int totalPrice = 0;
-        for (Product product : products) {
+        for(Product product : products){
             totalPrice += product.getPrice();
         }
         return totalPrice;
