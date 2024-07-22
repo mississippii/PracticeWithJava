@@ -11,7 +11,6 @@ public abstract class Product {
         this.discount = discount;
     }
     public abstract double calculatePrice();
-
     public String getName() {
         return name;
     }
