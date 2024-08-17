@@ -17,11 +17,5 @@ public class RunnableClass implements Runnable{
         fibonacciNuber.fib(fibonacciNuber.n);
         System.out.println("Ending Task " + fibonacciNuber.id+" at "+isoFormater.format(LocalDateTime.now()));
     }
-    public static void sleepOneSecond(){
-        try {
-            Thread.sleep(TimeUnit.SECONDS.toMillis(1));
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
+
 }

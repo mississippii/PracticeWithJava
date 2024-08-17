@@ -10,12 +10,11 @@ public class ThreadPool {
             10,
             TimeUnit.MINUTES,
             new ArrayBlockingQueue<>(3),
-            new CustomThreadFactory(),
             new ThreadPoolExecutor.DiscardPolicy() );
 
     public void processTask(int taskId){
         executor.submit(()->{
-            System.out.println("Processing task:"+ taskId+"Completing by"+ Thread.currentThread().getName());
+            System.out.println("Processing task:"+ taskId+"Completing by");
         });
     }
 }

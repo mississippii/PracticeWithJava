@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.TimeUnit;
 
+import static java.lang.Thread.sleep;
+
 public class Watch implements Runnable{
     private volatile boolean threadRunning=true;
     @Override
@@ -24,7 +26,7 @@ public class Watch implements Runnable{
     }
     private void sleepOnesecond(){
         try {
-            Thread.sleep(TimeUnit.SECONDS.toMillis(1));
+            sleep(TimeUnit.SECONDS.toMillis(1));
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
