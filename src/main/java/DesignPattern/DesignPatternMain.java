@@ -1,20 +1,17 @@
 package DesignPattern;
 
-import DesignPattern.Creational.Singleton;
+import DesignPattern.Creational.Factory.CreatProductA;
+import DesignPattern.Creational.Factory.CreatProductB;
+import DesignPattern.Creational.Factory.Creator;
+import DesignPattern.Creational.Factory.Product;
 
 public class DesignPatternMain {
     public static void main(String[] args) {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Singleton singleton1 = Singleton.getInstance();
-            }
-        }).start();
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Singleton singleton1 = Singleton.getInstance();
-            }
-        }).start();
+        Creator creator = new CreatProductA();
+        Product product = creator.factoryMethod();
+        product.display();
+        Creator creator1 = new CreatProductB();
+        Product product1 = creator1.factoryMethod();
+        product1.display();
     }
 }

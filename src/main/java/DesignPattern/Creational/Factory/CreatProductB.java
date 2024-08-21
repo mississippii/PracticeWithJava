@@ -1,6 +1,6 @@
 package DesignPattern.Creational.Factory;
 
-public class CreateProductB extends Creator{
+public class CreatProductB extends Creator{
     @Override
     public Product factoryMethod() {
         return new ProductB();
