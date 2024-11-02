@@ -1,5 +1,6 @@
 package OOP.Abstraction;
 
+
 public class Client {
     private final String name;
     private final int hoursWorked;
