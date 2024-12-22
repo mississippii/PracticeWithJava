@@ -2,15 +2,28 @@ package others;
 
 import others.generic.DynamicArray;
 
+import java.util.Stack;
+
 public class Others {
     public static void main(String[] args){
-        DynamicArray<String> str = new DynamicArray<>();
-        str.add("Tanveer");
-        str.add("Afreen");
-        str.add("Amber");
-        System.out.println(str.size());
-        for(int i=0; i<str.size(); i++){
-            System.out.println(str.get(i));
+        int [] ara = {4,6,5,5,3};
+        int [] ans = finalPrices(ara);
+
+    }
+    public static int[] finalPrices(int[] prices) {
+        int n = prices.length;
+        Stack<Integer> stack = new Stack<>();
+        for(int i = 0; i < n; i++){
+            if(stack.isEmpty() || prices[stack.peek()] < prices[i]){
+                stack.push(i);
+            }else{
+                while(!stack.isEmpty() && prices[stack.peek()] >= prices[i]){
+                    int id = stack.pop();
+                    prices[id]-=prices[i];
+                }
+                stack.push(i);
+            }
         }
+        return prices;
     }
 }

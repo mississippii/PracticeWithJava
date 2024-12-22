@@ -2,8 +2,8 @@ package designpattern.creational.builders;
 
 public class PhoneBuilder {
     private String os;
-    private String ram;
-    private String cpu;
+    private int ram;
+    private int cpu;
     private String processor;
     private String screenSize;
     private int battery;
@@ -14,12 +14,12 @@ public class PhoneBuilder {
         return this;
     }
 
-    public PhoneBuilder setRam(String ram) {
+    public PhoneBuilder setRam(int ram) {
         this.ram = ram;
         return this;
     }
 
-    public PhoneBuilder setCpu(String cpu) {
+    public PhoneBuilder setCpu(int cpu) {
         this.cpu = cpu;
         return this;
     }
