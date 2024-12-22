@@ -2,9 +2,13 @@ package others;
 
 import others.generic.DynamicArray;
 
-import java.util.Stack;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.file.Path;
 
 public class Others {
+<<<<<<< HEAD
     public static void main(String[] args){
         String str = "Hello World";
         String str2 = new String("Hello World");
@@ -27,5 +31,10 @@ public class Others {
             }
         }
         return prices;
+=======
+    public static void main(String[] args) throws IOException {
+        Path path = Path.of("/home/veer/Documents/Java/PracticeWithJava/src/main/resources/hello.txt");
+        System.out.println(path);
+>>>>>>> 498d744 (fixed some issue)
     }
 }
