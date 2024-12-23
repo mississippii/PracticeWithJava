@@ -6,9 +6,11 @@ import java.util.Stack;
 
 public class Others {
     public static void main(String[] args){
-        int [] ara = {4,6,5,5,3};
-        int [] ans = finalPrices(ara);
-
+        String str = "Hello World";
+        String str2 = new String("Hello World");
+        if (str2==str){
+            System.out.println("same");
+        }
     }
     public static int[] finalPrices(int[] prices) {
         int n = prices.length;

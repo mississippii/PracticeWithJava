@@ -1,15 +1,15 @@
 package designpattern.creational.builders;
 
 public class PhoneBuilder {
-    private String os;
-    private int ram;
-    private int cpu;
-    private String processor;
-    private String screenSize;
-    private int battery;
-    private int camera;
+    int ram;
+    int cpu;
+    String processor;
+    String screenSize;
+    int battery;
+    int camera;
+    Phone.OS os;
 
-    public PhoneBuilder setOs(String os) {
+    public PhoneBuilder setOs(Phone.OS os) {
         this.os = os;
         return this;
     }
@@ -45,6 +45,6 @@ public class PhoneBuilder {
     }
 
     public Phone build() {
-        return new Phone(os, ram, cpu, processor, screenSize, battery, camera);
+        return new Phone(this);
     }
 }

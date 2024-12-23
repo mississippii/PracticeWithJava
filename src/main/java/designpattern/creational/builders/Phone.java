@@ -1,7 +1,13 @@
 package designpattern.creational.builders;
 
 public class Phone {
-    private String os;
+    public enum OS{
+        android,
+        ios,
+        linux,
+        windows
+    }
+    private OS os;
     private int ram;
     private int cpu;
     private String processor;
@@ -9,15 +15,16 @@ public class Phone {
     private int battery;
     private int camera;
 
-    public Phone(String os, int ram, int cpu, String processor, String screenSize, int battery, int camera) {
-        this.os = os;
-        this.ram = ram;
-        this.cpu = cpu;
-        this.processor = processor;
-        this.screenSize = screenSize;
-        this.battery = battery;
-        this.camera = camera;
+    public Phone(PhoneBuilder phoneBuilder) {
+        this.os = phoneBuilder.os;
+        this.ram = phoneBuilder.ram;
+        this.cpu = phoneBuilder.cpu;
+        this.processor = phoneBuilder.processor;
+        this.screenSize = phoneBuilder.screenSize;
+        this.battery = phoneBuilder.battery;
+        this.camera = phoneBuilder.camera;
     }
+
 
     @Override
     public String toString() {

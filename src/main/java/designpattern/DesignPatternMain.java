@@ -8,7 +8,7 @@ public class DesignPatternMain {
         Phone phone = new PhoneBuilder()
                 .setBattery(4000)
                 .setCamera(12)
-                .setOs("Android")
+                .setOs(Phone.OS.linux)
                 .setRam(8)
                 .setCpu(16)
                 .setProcessor("Snapdragon")
