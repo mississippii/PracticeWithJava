@@ -1,6 +1,8 @@
 package lambda;
 
-public class Contact {
+import java.io.Serializable;
+
+public class Contact implements Serializable {
     enum Sex{
         MALE,FEMALE
     }
@@ -35,5 +37,13 @@ public class Contact {
 
     public void setSex(Sex sex) {
         this.sex = sex;
+    }
+    @Override
+    public String toString() {
+        return "Contact{" +
+                "name='" + name + '\'' +
+                ", age=" + age +
+                ", sex=" + sex +
+                '}';
     }
 }
