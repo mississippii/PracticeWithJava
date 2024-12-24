@@ -1,5 +1,5 @@
 package dynamicObject;
 
-public interface Cofee {
+public interface Coffee {
     String getIngredient();
 }

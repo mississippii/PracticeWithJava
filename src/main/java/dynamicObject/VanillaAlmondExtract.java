@@ -1,7 +1,7 @@
 package dynamicObject;
 
 public class VanillaAlmondExtract extends CoffeeDecorator{
-    public VanillaAlmondExtract(Cofee coffee) {
+    public VanillaAlmondExtract(Coffee coffee) {
         super(coffee);
     }
 

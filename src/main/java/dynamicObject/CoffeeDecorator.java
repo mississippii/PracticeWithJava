@@ -1,10 +1,10 @@
 package dynamicObject;
 
 
-public abstract class CoffeeDecorator implements Cofee   {
-    private final Cofee coffee;
+public abstract class CoffeeDecorator implements Coffee {
+    private final Coffee coffee;
 
-    public CoffeeDecorator(Cofee coffee) {
+    public CoffeeDecorator(Coffee coffee) {
         this.coffee = coffee;
     }
     @Override

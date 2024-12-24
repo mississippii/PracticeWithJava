@@ -1,6 +1,6 @@
 package dynamicObject;
 
-public class CofeeBean implements Cofee{
+public class CoffeeBean implements Coffee {
     @Override
     public String getIngredient() {
         return "Coffee Bean";
