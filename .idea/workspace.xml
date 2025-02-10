@@ -60,7 +60,7 @@
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
-  <component name="RunManager" selected="Application.CoffeeApp">
+  <component name="RunManager" selected="Application.Others">
     <configuration name="ArrayListDemo" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="others.collections.ArrayListDemo" />
       <module name="PracticeWithJava" />
@@ -128,9 +128,9 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Application.Others" />
         <item itemvalue="Application.CoffeeApp" />
         <item itemvalue="Application.LambdaCalculas" />
-        <item itemvalue="Application.Others" />
         <item itemvalue="Application.DesignPatternMain" />
         <item itemvalue="Application.ArrayListDemo" />
       </list>
