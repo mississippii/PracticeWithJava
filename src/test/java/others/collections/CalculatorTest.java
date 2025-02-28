@@ -8,8 +8,7 @@ class CalculatorTest {
     @Test
     public void firstTest() {
         Calculator calc = new Calculator();
-        int result = calc.add(5, 3);
-        Assertions.assertEquals(8,result);
+        Assertions.assertEquals(8,7);
         System.out.println("First test passed!");
     }
 }
