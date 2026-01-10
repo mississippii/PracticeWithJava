@@ -2,10 +2,14 @@ package others;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Comparator;
 
 public class Others {
     public static void main(String[] args) throws IOException {
-        Path path = Path.of("/home/veer/Documents/Java/PracticeWithJava/src/main/resources/hello.txt");
-        System.out.println(path);
+        Integer[] ara =new Integer[] {34, 4, 12, 70, 21, 65};
+        int x = Arrays.binarySearch(ara, 12);
+        System.out.println(x);
+
     }
 }
