@@ -6,10 +6,17 @@ import java.util.Arrays;
 import java.util.Comparator;
 
 public class Others {
-    public static void main(String[] args) throws IOException {
-        Integer[] ara =new Integer[] {34, 4, 12, 70, 21, 65};
-        int x = Arrays.binarySearch(ara, 12);
-        System.out.println(x);
 
+    private static int factorial(int x){
+        if(x==1 || x==0)return 1;
+        return x*factorial(--x);
+    }
+
+    private static void twoVariables(int a, int b){
+        System.out.println(a+" "+b);
+    }
+    public static void main(String[] args) throws IOException {
+        int x =10;
+        twoVariables(x++,x++);
     }
 }
