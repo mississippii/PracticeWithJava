@@ -1,14 +1,125 @@
-# Default ignored files
-/shelf/
-/workspace.xml
-# IntelliJ IDEA files
+# ========================
+# IDE - IntelliJ IDEA
+# ========================
 .idea/
-.idea/*
-.idea/encodings.xml
-.idea/misc.xml
-# Editor-based HTTP Client requests
-/httpRequests/
-# Datasource local storage ignored files
-/dataSources/
-/dataSources.local.xml
+*.iml
+*.iws
+*.ipr
+out/
+
+# ========================
+# IDE - Eclipse
+# ========================
+.classpath
+.project
+.settings/
+bin/
+
+# ========================
+# IDE - VS Code
+# ========================
+.vscode/
+
+# ========================
+# IDE - NetBeans
+# ========================
+nbproject/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# ========================
+# Build - Maven
+# ========================
 target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# ========================
+# Build - Gradle
+# ========================
+.gradle/
+build/
+gradle-app.setting
+!gradle-wrapper.jar
+.gradletasknamecache
+
+# ========================
+# Compiled Files
+# ========================
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# ========================
+# Logs
+# ========================
+*.log
+logs/
+
+# ========================
+# OS Generated
+# ========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ========================
+# Environment & Secrets
+# ========================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets.yml
+secrets.yaml
+application-local.properties
+application-local.yml
+
+# ========================
+# Temporary Files
+# ========================
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+\#*\#
+
+# ========================
+# Package Files
+# ========================
+*.zip
+*.tar.gz
+*.rar
+
+# ========================
+# Test Output
+# ========================
+test-output/
+surefire-reports/
+failsafe-reports/
+
+# ========================
+# Coverage Reports
+# ========================
+jacoco.exec
+*.exec
+coverage/
+htmlcov/
