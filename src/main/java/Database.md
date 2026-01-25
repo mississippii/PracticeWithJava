@@ -1,1403 +1,3942 @@
 # Database - Complete Reference Guide
 
-## SQL Query Execution Order
+---
 
-**Important:** SQL executes queries in the order: **FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT**, not in the written order.
+## Table of Contents
 
+1. [Introduction to Databases](#1-introduction-to-databases)
+2. [Types of Databases & When to Use](#2-types-of-databases--when-to-use)
+3. [RDBMS Fundamentals](#3-rdbms-fundamentals)
+4. [Constraints & Data Types](#4-constraints--data-types)
+5. [SQL Basics & Query Execution](#5-sql-basics--query-execution)
+6. [SQL Functions](#6-sql-functions)
+7. [Database Design](#7-database-design)
+8. [Indexing & Performance](#8-indexing--performance)
+9. [Transactions & Concurrency](#9-transactions--concurrency)
+10. [Views, Procedures, Functions & Triggers](#10-views-procedures-functions--triggers)
+11. [Cursors & Temporary Tables](#11-cursors--temporary-tables)
+12. [Partitioning](#12-partitioning)
+13. [Scaling Databases](#13-scaling-databases)
+14. [Database Security](#14-database-security)
+15. [Backup & Recovery](#15-backup--recovery)
+16. [OLTP vs OLAP](#16-oltp-vs-olap)
+17. [Interview Questions](#17-interview-questions)
+
+---
+
+## 1. Introduction to Databases
+
+### What is a Database?
+
+A database is an organized collection of structured data stored electronically. It allows efficient storage, retrieval, modification, and deletion of data.
+
+### Why Do We Need Databases?
+
+**Without Database (File System):**
+```
+Problems:
+├── Data Redundancy (same data in multiple files)
+├── Data Inconsistency (conflicting data)
+├── No Concurrent Access (one user at a time)
+├── No Security (anyone can access files)
+├── No ACID properties (partial updates possible)
+├── Complex Queries (manual file parsing)
+└── No Relationships (hard to link related data)
+```
+
+**With Database:**
+```
+Solutions:
+├── Centralized Data (single source of truth)
+├── Data Integrity (constraints, validations)
+├── Concurrent Access (multiple users safely)
+├── Security (authentication, authorization)
+├── ACID Compliance (reliable transactions)
+├── Powerful Queries (SQL)
+└── Relationships (foreign keys, joins)
+```
+
+### Real-World Example
+
+**Scenario:** E-commerce application storing user orders
+
+**File System Approach (Bad):**
+```
+users.txt:
+1,John,john@email.com
+2,Jane,jane@email.com
+
+orders.txt:
+101,1,iPhone,1000
+102,1,Case,50
+103,2,MacBook,2000
+
+Problems:
+- What if John's email changes? Update in how many files?
+- What if we delete user 1? Orders become orphaned
+- How to find "all orders by John"? Parse both files manually
+- Two admins editing same file? Data corruption
+```
+
+**Database Approach (Good):**
 ```sql
--- Written order:
-SELECT column
-FROM table
-WHERE condition
-GROUP BY column
-HAVING condition
-ORDER BY column
-LIMIT n
+-- Structured tables with relationships
+CREATE TABLE users (
+    id INT PRIMARY KEY,
+    name VARCHAR(100),
+    email VARCHAR(100) UNIQUE
+);
 
--- Actual execution order:
-1. FROM table          -- Get the data
-2. WHERE condition     -- Filter rows
-3. GROUP BY column     -- Group data
-4. HAVING condition    -- Filter groups
-5. SELECT column       -- Select columns
-6. ORDER BY column     -- Sort results
-7. LIMIT n            -- Limit results
+CREATE TABLE orders (
+    id INT PRIMARY KEY,
+    user_id INT REFERENCES users(id),  -- Relationship!
+    product VARCHAR(100),
+    amount DECIMAL
+);
+
+-- Easy queries
+SELECT * FROM orders WHERE user_id = 1;
+
+-- Cascade updates/deletes
+-- Data integrity maintained automatically
 ```
 
 ---
 
-## Key Database Concepts
+## 2. Types of Databases & When to Use
 
-### Primary Key (PK)
-A primary key is a column (or combination of columns) that uniquely identifies each row in a table.
+### Database Categories
+
+```
+                        DATABASES
+                            │
+            ┌───────────────┴───────────────┐
+            │                               │
+         RDBMS                           NoSQL
+      (Relational)                    (Non-Relational)
+            │                               │
+    ┌───────┴───────┐           ┌───────────┼───────────┐
+    │               │           │           │           │
+  MySQL        PostgreSQL    Document   Key-Value    Graph
+  Oracle       SQL Server    (MongoDB)  (Redis)    (Neo4j)
+  MariaDB                    (CouchDB)  (Memcached)
+                                        Column-Family
+                                        (Cassandra)
+                                        (HBase)
+```
+
+---
+
+### RDBMS (Relational Database)
+
+**What:** Stores data in tables with rows and columns, linked by relationships.
+
+**Characteristics:**
+- Structured schema (predefined)
+- ACID compliant
+- SQL for queries
+- Strong consistency
+- Vertical scaling (scale up)
+
+**When to Use RDBMS:**
+
+| Use Case | Why RDBMS? |
+|----------|------------|
+| Banking/Financial | ACID compliance, no data loss |
+| E-commerce | Complex queries, transactions |
+| ERP Systems | Structured data, relationships |
+| Inventory Management | Data integrity, constraints |
+| Healthcare Records | Compliance, consistency |
+| Booking Systems | Transaction safety |
+
+**Popular RDBMS:**
+
+| Database | Best For |
+|----------|----------|
+| **PostgreSQL** | Complex queries, JSONB support, open-source |
+| **MySQL** | Web applications, read-heavy workloads |
+| **Oracle** | Enterprise, large scale |
+| **SQL Server** | Microsoft ecosystem, BI |
+| **SQLite** | Embedded, mobile apps, small projects |
+
+---
+
+### NoSQL Databases
+
+#### Document Database (MongoDB, CouchDB)
+
+**What:** Stores data as JSON-like documents.
+
+```json
+{
+  "_id": "user123",
+  "name": "John",
+  "email": "john@email.com",
+  "orders": [
+    {"product": "iPhone", "amount": 1000},
+    {"product": "Case", "amount": 50}
+  ]
+}
+```
+
+**When to Use:**
+- Flexible/evolving schema
+- Content management systems
+- Catalogs, user profiles
+- Real-time analytics
+- Mobile app backends
+
+**Example Use Cases:**
+- Product catalog (varying attributes)
+- Blog posts with comments
+- User preferences/settings
+
+---
+
+#### Key-Value Store (Redis, Memcached)
+
+**What:** Simple key-value pairs, extremely fast.
+
+```
+key: "session:user123"
+value: "{userId: 123, token: 'abc', expiry: 3600}"
+```
+
+**When to Use:**
+- Caching
+- Session management
+- Real-time leaderboards
+- Rate limiting
+- Message queues
+
+**Example Use Cases:**
+- Cache frequently accessed data
+- Store user sessions
+- Shopping cart (temporary data)
+
+---
+
+#### Column-Family (Cassandra, HBase)
+
+**What:** Stores data in columns instead of rows, optimized for writes.
+
+```
+Row Key: user123
+├── Column Family: profile
+│   ├── name: "John"
+│   └── email: "john@email.com"
+└── Column Family: activity
+    ├── last_login: "2024-01-15"
+    └── login_count: 150
+```
+
+**When to Use:**
+- Time-series data
+- IoT sensor data
+- Write-heavy workloads
+- Distributed across regions
+- Analytics/logging
+
+**Example Use Cases:**
+- Netflix viewing history
+- IoT device logs
+- Stock price history
+
+---
+
+#### Graph Database (Neo4j, Amazon Neptune)
+
+**What:** Stores data as nodes and relationships (edges).
+
+```
+(John)-[:FRIENDS_WITH]->(Jane)
+(John)-[:PURCHASED]->(iPhone)
+(Jane)-[:REVIEWED]->(iPhone)
+```
+
+**When to Use:**
+- Social networks
+- Recommendation engines
+- Fraud detection
+- Knowledge graphs
+- Network analysis
+
+**Example Use Cases:**
+- Facebook friend suggestions
+- LinkedIn connections
+- Fraud pattern detection
+
+---
+
+### Decision Matrix: Which Database to Choose?
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    DATABASE SELECTION GUIDE                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  START HERE                                                             │
+│      │                                                                  │
+│      ▼                                                                  │
+│  Do you need ACID compliance?                                           │
+│      │                                                                  │
+│      ├── YES ──► Is schema well-defined?                                │
+│      │               │                                                  │
+│      │               ├── YES ──► RDBMS (PostgreSQL, MySQL)              │
+│      │               │                                                  │
+│      │               └── NO ──► Document DB with transactions           │
+│      │                          (MongoDB 4.0+)                          │
+│      │                                                                  │
+│      └── NO ──► What's your priority?                                   │
+│                    │                                                    │
+│                    ├── Speed/Caching ──► Key-Value (Redis)              │
+│                    │                                                    │
+│                    ├── Flexibility ──► Document DB (MongoDB)            │
+│                    │                                                    │
+│                    ├── Write-heavy/Time-series ──► Column (Cassandra)   │
+│                    │                                                    │
+│                    └── Relationships/Networks ──► Graph (Neo4j)         │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Quick Comparison Table
+
+| Feature | RDBMS | Document | Key-Value | Column | Graph |
+|---------|-------|----------|-----------|--------|-------|
+| **Schema** | Fixed | Flexible | None | Flexible | Flexible |
+| **ACID** | Yes | Partial | No | No | Yes |
+| **Scaling** | Vertical | Horizontal | Horizontal | Horizontal | Vertical |
+| **Query** | SQL | JSON-based | Key lookup | CQL | Cypher |
+| **Best For** | Transactions | Flexibility | Speed | Writes | Relations |
+| **Example** | PostgreSQL | MongoDB | Redis | Cassandra | Neo4j |
+
+### Real-World Tech Stacks
+
+| Company | Primary DB | Purpose | Secondary DB | Purpose |
+|---------|-----------|---------|--------------|---------|
+| **Uber** | PostgreSQL | Trips, Users | Redis | Caching, Geo |
+| **Netflix** | Cassandra | Viewing history | MySQL | Billing |
+| **Twitter** | MySQL | Tweets | Redis | Timeline cache |
+| **LinkedIn** | Oracle | User data | Kafka | Events |
+| **Instagram** | PostgreSQL | Core data | Cassandra | Feed |
+
+---
+
+## 3. RDBMS Fundamentals
+
+### Core Concepts
+
+```
+DATABASE
+    │
+    └── TABLES (Relations)
+            │
+            ├── COLUMNS (Attributes) ──► Define data types
+            │
+            └── ROWS (Records/Tuples) ──► Actual data
+```
+
+**Example:**
+```sql
+-- Table: students
+┌────────────┬─────────────┬─────────────────────┬─────┐
+│ student_id │ name        │ email               │ age │
+│ (PK)       │ (VARCHAR)   │ (VARCHAR, UNIQUE)   │(INT)│
+├────────────┼─────────────┼─────────────────────┼─────┤
+│ 1          │ Alice       │ alice@example.com   │ 20  │  ← Row
+│ 2          │ Bob         │ bob@example.com     │ 22  │  ← Row
+│ 3          │ Charlie     │ charlie@example.com │ 21  │  ← Row
+└────────────┴─────────────┴─────────────────────┴─────┘
+      ▲            ▲               ▲                ▲
+   Column       Column          Column           Column
+```
+
+---
+
+### Keys
+
+#### Primary Key (PK)
+
+Uniquely identifies each row in a table.
 
 **Properties:**
 - Must be **unique**
 - Cannot be **NULL**
 - Only **one per table**
-- Automatically creates a **clustered index** (in most databases)
+- Creates **clustered index** automatically
 
-**Example:**
 ```sql
-CREATE TABLE Student (
-    student_id INT PRIMARY KEY,
+CREATE TABLE students (
+    student_id INT PRIMARY KEY,  -- Single column PK
     name VARCHAR(100),
     email VARCHAR(100)
 );
-```
 
----
-
-### Foreign Key (FK)
-A foreign key is a column that references the primary key of another table, creating a relationship between tables.
-
-**Referential Integrity:** Ensures that relationships between tables remain consistent.
-
-**Example:**
-```sql
-CREATE TABLE Enrollment (
-    enrollment_id INT PRIMARY KEY,
+-- Composite Primary Key
+CREATE TABLE enrollments (
     student_id INT,
     course_id INT,
-    FOREIGN KEY (student_id) REFERENCES Student(student_id),
-    FOREIGN KEY (course_id) REFERENCES Course(course_id)
+    PRIMARY KEY (student_id, course_id)  -- Two columns together
 );
 ```
 
-**Benefits:**
-- Maintains data integrity
-- Prevents orphaned records
-- Enforces relationships
-
 ---
 
-### Unique Key (UK)
-A unique key ensures that all values in a column (or combination of columns) are different.
+#### Foreign Key (FK)
 
-**Difference from Primary Key:**
-| Primary Key                  | Unique Key                    |
-|------------------------------|-------------------------------|
-| Only one per table           | Multiple allowed              |
-| Cannot be NULL               | Can have one NULL             |
-| Creates clustered index      | Creates non-clustered index   |
-| Identifies row uniquely      | Ensures column uniqueness     |
+References primary key of another table, creating relationships.
 
-**Example:**
 ```sql
-CREATE TABLE User (
+CREATE TABLE orders (
+    order_id INT PRIMARY KEY,
+    customer_id INT,
+    amount DECIMAL(10,2),
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+);
+```
+
+**Referential Integrity Actions:**
+```sql
+-- ON DELETE options
+FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+    ON DELETE CASCADE      -- Delete orders when customer deleted
+    ON DELETE SET NULL     -- Set customer_id to NULL
+    ON DELETE RESTRICT     -- Prevent deletion if orders exist
+    ON DELETE NO ACTION    -- Same as RESTRICT (default)
+
+-- ON UPDATE options
+    ON UPDATE CASCADE      -- Update FK when PK changes
+```
+
+---
+
+#### Unique Key
+
+Ensures all values in column are different.
+
+| Primary Key | Unique Key |
+|-------------|------------|
+| Only one per table | Multiple allowed |
+| Cannot be NULL | Can have one NULL |
+| Creates clustered index | Creates non-clustered index |
+
+```sql
+CREATE TABLE users (
     user_id INT PRIMARY KEY,
-    email VARCHAR(100) UNIQUE,
-    phone VARCHAR(15) UNIQUE
+    email VARCHAR(100) UNIQUE,      -- Unique constraint
+    phone VARCHAR(15) UNIQUE        -- Another unique constraint
 );
 ```
 
 ---
 
-## ACID Properties
+### Relationships
 
-ACID ensures reliable database transactions.
+#### One-to-One (1:1)
 
-### A - Atomicity
-**"All or Nothing"**
-- Transaction completes fully or not at all
-- No partial updates
+One record in Table A relates to exactly one record in Table B.
 
-**Example:** Bank transfer - both debit and credit must happen, or neither
-
-### C - Consistency
-**"Valid State to Valid State"**
-- Database moves from one valid state to another
-- All constraints are satisfied
-
-**Example:** Balance cannot be negative if constraint exists
-
-### D - Durability
-**"Permanent Once Committed"**
-- Once transaction is committed, changes are permanent
-- Survives system crashes
-
-**Example:** After successful commit, data persists even if server crashes
-
-### I - Isolation
-**"Transactions Don't Interfere"**
-- Concurrent transactions don't affect each other
-- Each transaction sees consistent data
-
-**Example:** Two people booking same seat don't interfere
-
----
-
-## Normalization
-
-**What is Normalization?**
-The process of organizing data to reduce redundancy and improve data integrity.
-
-**Benefits:**
-- Eliminates redundant data
-- Reduces storage space
-- Prevents update anomalies
-- Ensures data consistency
-- Makes maintenance easier
-
-### 1NF (First Normal Form)
-**Rules:**
-- Each column contains atomic (indivisible) values
-- Each column contains values of single type
-- Each column has unique name
-- Order doesn't matter
-
-**Before 1NF:**
 ```
-| student_id | name  | courses           |
-|------------|-------|-------------------|
-| 1          | Alice | Math, Physics     |
-```
+┌─────────┐         ┌──────────┐
+│ Person  │────1:1──│ Passport │
+└─────────┘         └──────────┘
 
-**After 1NF:**
-```
-| student_id | name  | course  |
-|------------|-------|---------|
-| 1          | Alice | Math    |
-| 1          | Alice | Physics |
+CREATE TABLE persons (
+    person_id INT PRIMARY KEY,
+    name VARCHAR(100)
+);
+
+CREATE TABLE passports (
+    passport_id INT PRIMARY KEY,
+    person_id INT UNIQUE,  -- UNIQUE ensures 1:1
+    passport_number VARCHAR(20),
+    FOREIGN KEY (person_id) REFERENCES persons(person_id)
+);
 ```
 
 ---
 
-### 2NF (Second Normal Form)
-**Rules:**
-- Must be in 1NF
-- No partial dependency (non-key attributes fully depend on primary key)
+#### One-to-Many (1:N)
 
-**Before 2NF:**
-```
-| student_id | course_id | student_name | course_name |
-|------------|-----------|--------------|-------------|
-| 1          | 101       | Alice        | Math        |
-```
-`student_name` depends only on `student_id`, not on full key (`student_id`, `course_id`)
-
-**After 2NF:**
-```
-Student table:
-| student_id | student_name |
-|------------|--------------|
-| 1          | Alice        |
-
-Enrollment table:
-| student_id | course_id | course_name |
-|------------|-----------|-------------|
-| 1          | 101       | Math        |
-```
-
----
-
-### 3NF (Third Normal Form)
-**Rules:**
-- Must be in 2NF
-- No transitive dependency (non-key attributes don't depend on other non-key attributes)
-
-**Before 3NF:**
-```
-| student_id | student_name | dept_id | dept_name |
-|------------|--------------|---------|-----------|
-| 1          | Alice        | 10      | CS        |
-```
-`dept_name` depends on `dept_id`, not directly on `student_id`
-
-**After 3NF:**
-```
-Student table:
-| student_id | student_name | dept_id |
-|------------|--------------|---------|
-| 1          | Alice        | 10      |
-
-Department table:
-| dept_id | dept_name |
-|---------|-----------|
-| 10      | CS        |
-```
-
----
-
-### BCNF (Boyce-Codd Normal Form)
-**Rules:**
-- Must be in 3NF
-- Every determinant is a candidate key
-
-**Stricter version of 3NF**
-
----
-
-## Denormalization
-
-**What is it?** Intentionally adding redundancy to improve read performance.
-
-**When to use:**
-- Read-heavy applications
-- Complex joins hurting performance
-- Reporting/analytics databases
-- Caching frequently accessed data
-
-**Trade-offs:**
-- ✅ Faster reads
-- ❌ Slower writes
-- ❌ More storage
-- ❌ Data inconsistency risk
-
----
-
-## Relationships & ER Diagrams
-
-### Entity-Relationship (ER) Diagram
-Visual representation of database structure showing:
-
-**Components:**
-- **Entities (tables)** - Rectangles
-- **Attributes (columns)** - Ovals
-- **Relationships** - Diamonds/lines
-- **Cardinality** - 1:1, 1:N, M:N
-
-### Relationship Types:
-
-#### 1:1 (One-to-One)
-One record in Table A relates to one record in Table B.
-
-**Example:** Person ↔ Passport
-
-#### 1:N (One-to-Many)
 One record in Table A relates to many records in Table B.
 
-**Example:** Department → Employees
+```
+┌────────────┐         ┌───────────┐
+│ Department │────1:N──│ Employees │
+└────────────┘         └───────────┘
 
-#### M:N (Many-to-Many)
-Many records in Table A relate to many records in Table B.
+CREATE TABLE departments (
+    dept_id INT PRIMARY KEY,
+    dept_name VARCHAR(100)
+);
 
-**Example:** Students ↔ Courses
-
-**Implementation:** Requires a junction table
+CREATE TABLE employees (
+    emp_id INT PRIMARY KEY,
+    name VARCHAR(100),
+    dept_id INT,  -- Many employees can have same dept_id
+    FOREIGN KEY (dept_id) REFERENCES departments(dept_id)
+);
+```
 
 ---
 
-### Junction/Bridge Table
+#### Many-to-Many (M:N)
 
-A junction table (also called bridge, linking, or associative table) implements many-to-many relationships.
+Many records in Table A relate to many records in Table B.
 
-**Example:**
-```sql
--- Students and Courses (M:N relationship)
+**Requires a Junction (Bridge) Table:**
 
-CREATE TABLE Student (
+```
+┌──────────┐         ┌────────────┐         ┌─────────┐
+│ Students │────M:N──│ Enrollment │────M:N──│ Courses │
+└──────────┘         │ (Junction) │         └─────────┘
+                     └────────────┘
+
+CREATE TABLE students (
     student_id INT PRIMARY KEY,
     name VARCHAR(100)
 );
 
-CREATE TABLE Course (
+CREATE TABLE courses (
     course_id INT PRIMARY KEY,
     course_name VARCHAR(100)
 );
 
 -- Junction table
-CREATE TABLE Enrollment (
+CREATE TABLE enrollments (
     enrollment_id INT PRIMARY KEY,
     student_id INT,
     course_id INT,
     grade CHAR(1),
-    FOREIGN KEY (student_id) REFERENCES Student(student_id),
-    FOREIGN KEY (course_id) REFERENCES Course(course_id)
+    enrolled_date DATE,
+    FOREIGN KEY (student_id) REFERENCES students(student_id),
+    FOREIGN KEY (course_id) REFERENCES courses(course_id),
+    UNIQUE (student_id, course_id)  -- Prevent duplicate enrollments
 );
 ```
 
 ---
 
-## Indexes
+### ACID Properties
 
-### 🎯 Why Indexes? The Phone Book Story
-
-**The Problem: Searching Without Index**
-
-Imagine you're building a student management system with 1 million students:
-
-```sql
--- Find student with ID 987654
-SELECT * FROM students WHERE student_id = 987654;
-
-Without Index:
-┌──────────────────────────────────────────────────────────┐
-│              DATABASE SEARCH (NO INDEX)                   │
-├──────────────────────────────────────────────────────────┤
-│                                                           │
-│  Check row 1:    ID = 1       ✗ (not 987654)            │
-│  Check row 2:    ID = 2       ✗                          │
-│  Check row 3:    ID = 3       ✗                          │
-│  ...                                                      │
-│  Check row 987654: ID = 987654 ✓ FOUND!                  │
-│                                                           │
-│  Checked 987,654 rows = FULL TABLE SCAN                  │
-│  Time: 10 seconds (slow!) ⏱️                              │
-│                                                           │
-└──────────────────────────────────────────────────────────┘
-
-With Index:
-┌──────────────────────────────────────────────────────────┐
-│              DATABASE SEARCH (WITH INDEX)                 │
-├──────────────────────────────────────────────────────────┤
-│                                                           │
-│  Index (B-Tree):                                          │
-│          500000                                           │
-│         /      \                                          │
-│    250000      750000                                     │
-│              /       \                                    │
-│          625000    875000                                 │
-│                   /      \                                │
-│               812500    937500                            │
-│                        /      \                           │
-│                    906250    968750                       │
-│                             /      \                      │
-│                         953125   984375                   │
-│                                 /      \                  │
-│                             968750   990625               │
-│                                     /                     │
-│                                 987654 ✓ FOUND!           │
-│                                                           │
-│  Checked only 12 rows (Binary search)                    │
-│  Time: 0.001 seconds (10,000x faster!) ⚡                │
-│                                                           │
-└──────────────────────────────────────────────────────────┘
-```
-
-### Real-World Analogy
-
-**Index = Phone Book vs Random Contact List**
+ACID ensures reliable database transactions.
 
 ```
-WITHOUT INDEX (Phone contacts in random order):
-┌────────────────────────────────────┐
-│ Random Contact List (1000 people)  │
-├────────────────────────────────────┤
-│ 1. Zara Wilson                     │
-│ 2. Bob Smith                       │
-│ 3. Alice Johnson                   │
-│ ...                                │
-│ 867. John Doe     ← Looking for!   │
-│ ...                                │
-│ 1000. Mike Brown                   │
-└────────────────────────────────────┘
-
-To find "John Doe":
-- Check contact 1: Not John ✗
-- Check contact 2: Not John ✗
-- Check contact 3: Not John ✗
-...
-- Check contact 867: FOUND! ✓
-
-Time: Check 867 contacts (slow!)
-
-WITH INDEX (Phone book - alphabetically sorted):
-┌────────────────────────────────────┐
-│ Phone Book (1000 people, sorted)   │
-├────────────────────────────────────┤
-│ ...                                │
-│ 465. Jane Wilson                   │
-│ 466. Jim Anderson                  │
-│ 467. John Doe     ← Jump directly! │
-│ 468. John Smith                    │
-│ ...                                │
-└────────────────────────────────────┘
-
-To find "John Doe":
-- Open middle (500) → "Jane Wilson" → Go right
-- Check (750) → "Sarah Taylor" → Go left
-- Check (625) → "Mary Lopez" → Go left
-- Check (550) → "Kevin Harris" → Go left
-- Check (475) → "John Anderson" → Go right
-- Check (467) → "John Doe" FOUND! ✓
-
-Time: Check only 6 contacts (167x faster!)
-```
-
-### Performance Impact Example
-
-**E-commerce scenario:** Search products by name
-
-```sql
--- Table: products (10 million records)
-
--- WITHOUT INDEX
-SELECT * FROM products WHERE name = 'iPhone 15';
--- Scans all 10 million rows
--- Time: 30 seconds ⏱️
-
--- WITH INDEX
-CREATE INDEX idx_product_name ON products(name);
-
-SELECT * FROM products WHERE name = 'iPhone 15';
--- Uses index, checks ~20 rows
--- Time: 0.003 seconds ⚡
--- 10,000x faster!
-```
-
-### When Indexes Help (Real Scenarios)
-
-✅ **Search by user ID** (Login)
-```sql
--- 1 million users, find by ID
-SELECT * FROM users WHERE user_id = 12345;
--- Without index: 5 seconds
--- With index: 0.001 seconds (5000x faster!)
-```
-
-✅ **Search by email** (Login by email)
-```sql
--- Find user by email
-SELECT * FROM users WHERE email = 'john@example.com';
--- Without index: 8 seconds (checks all 1M rows)
--- With index: 0.002 seconds (4000x faster!)
-```
-
-✅ **Product search** (E-commerce)
-```sql
--- 10 million products, search by category
-SELECT * FROM products WHERE category = 'Electronics' ORDER BY price;
--- Without index: 45 seconds
--- With index on (category, price): 0.1 seconds (450x faster!)
-```
-
-### When Indexes DON'T Help
-
-❌ **Small tables** (< 1000 rows)
-```sql
--- Table: countries (195 rows)
-SELECT * FROM countries WHERE name = 'India';
--- Without index: 0.001 seconds
--- With index: 0.001 seconds
--- No benefit! Index overhead not worth it.
-```
-
-❌ **Columns with few unique values** (Low cardinality)
-```sql
--- Table: users (1 million rows)
--- Column: gender (only 2 values: 'M' or 'F')
-SELECT * FROM users WHERE gender = 'M';
--- Returns 500,000 rows (50% of table)
--- Index doesn't help! Still scans half the table.
-```
-
-❌ **Heavy write operations**
-```sql
--- Table with lots of INSERTs
-INSERT INTO logs (message) VALUES ('Log entry');
--- Every INSERT must update the index
--- Without index: 0.01 seconds
--- With 5 indexes: 0.05 seconds (5x slower!)
-```
-
-### The Cost of Indexes
-
-**Indexes are NOT free:**
-
-```
-┌────────────────────────────────────────────────────────┐
-│             INDEX TRADEOFFS                             │
-├────────────────────────────────────────────────────────┤
-│                                                         │
-│  Benefits:                                              │
-│  ✅ SELECT queries: 100-10,000x faster                 │
-│  ✅ WHERE, JOIN, ORDER BY: Much faster                 │
-│                                                         │
-│  Costs:                                                 │
-│  ❌ Storage: Extra disk space (10-20% of table size)   │
-│  ❌ INSERT: Slower (must update index)                 │
-│  ❌ UPDATE: Slower if indexed columns change           │
-│  ❌ DELETE: Slower (must update index)                 │
-│  ❌ Memory: Indexes loaded in RAM                      │
-│                                                         │
-└────────────────────────────────────────────────────────┘
-
-Example:
-Table: users (1 million rows)
-- Table size: 500 MB
-- 3 indexes: +100 MB storage
-- INSERT time: 0.01s → 0.03s (3x slower)
-- SELECT time: 5s → 0.001s (5000x faster!)
-
-Trade-off: Slower writes for MUCH faster reads
-(Usually worth it for read-heavy applications!)
-```
-
-### Real-World Decision: When to Index?
-
-```
-E-commerce Product Table:
-┌──────────────────────────────────────────────────────┐
-│ Column        │ Index? │ Why?                        │
-├──────────────────────────────────────────────────────┤
-│ product_id    │ ✅ YES │ Primary key, frequent lookup │
-│ name          │ ✅ YES │ Search by name (common)      │
-│ category      │ ✅ YES │ Filter by category (common)  │
-│ price         │ ✅ YES │ Sort by price (common)       │
-│ description   │ ❌ NO  │ Full text, rarely filtered   │
-│ color         │ ⚠️ MAYBE│ Low cardinality (10 colors)  │
-│ created_at    │ ❌ NO  │ Rarely queried               │
-│ updated_at    │ ❌ NO  │ Rarely queried               │
-└──────────────────────────────────────────────────────┘
-
-Result: 4 indexes (id, name, category, price)
-Perfect for typical queries like:
-- Search: WHERE name LIKE '%iPhone%'
-- Filter: WHERE category = 'Electronics'
-- Sort: ORDER BY price
-```
-
-### Key Takeaway
-
-```
-⚡ Index = Trade read speed for write speed
-📚 Use on columns in WHERE, JOIN, ORDER BY
-🎯 Essential for large tables (100k+ rows)
-❌ Don't over-index (slows writes!)
-🔍 Test with realistic data volumes!
+┌─────────────────────────────────────────────────────────────────┐
+│                        ACID PROPERTIES                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  A - ATOMICITY                                                  │
+│  ─────────────                                                  │
+│  "All or Nothing"                                               │
+│                                                                 │
+│  Transaction: Transfer $100 from Account A to Account B         │
+│                                                                 │
+│  Step 1: Debit A  (-$100)  ✓                                    │
+│  Step 2: Credit B (+$100)  ✗ (fails)                            │
+│                                                                 │
+│  Result: ROLLBACK - Both steps undone                           │
+│          A keeps $100, B gets nothing                           │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  C - CONSISTENCY                                                │
+│  ───────────────                                                │
+│  "Valid State to Valid State"                                   │
+│                                                                 │
+│  Constraint: balance >= 0                                       │
+│                                                                 │
+│  Before: A = $100, B = $50  (valid state)                       │
+│  Transaction: Transfer $150 from A to B                         │
+│  Result: REJECTED (would make A = -$50)                         │
+│  After: A = $100, B = $50   (still valid state)                 │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  I - ISOLATION                                                  │
+│  ─────────────                                                  │
+│  "Transactions Don't Interfere"                                 │
+│                                                                 │
+│  Transaction 1: Read balance (sees $100)                        │
+│  Transaction 2: Update balance to $150                          │
+│  Transaction 1: Read balance again                              │
+│                                                                 │
+│  Depending on isolation level:                                  │
+│  - READ UNCOMMITTED: sees $150 (dirty read)                     │
+│  - REPEATABLE READ: sees $100 (consistent)                      │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  D - DURABILITY                                                 │
+│  ─────────────                                                  │
+│  "Permanent Once Committed"                                     │
+│                                                                 │
+│  1. Transaction commits successfully                            │
+│  2. Database confirms: "COMMIT OK"                              │
+│  3. Power failure / crash                                       │
+│  4. System restarts                                             │
+│  5. Data is still there (written to disk)                       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### What is an Index?
-An index is a data structure that improves query speed by providing quick lookups.
+## 4. Constraints & Data Types
 
-**Analogy:** Like a book's index - instead of reading every page, jump directly to relevant pages.
+### Constraints
 
-**Benefits:**
-- ✅ Faster SELECT queries
-- ✅ Faster WHERE clause filtering
-- ✅ Faster JOIN operations
-- ✅ Faster ORDER BY
+Constraints enforce rules on data in tables to maintain integrity.
 
-**Drawbacks:**
-- ❌ Extra storage space
-- ❌ Slower INSERT/UPDATE/DELETE
-- ❌ Maintenance overhead
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      SQL CONSTRAINTS                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  NOT NULL      - Column cannot have NULL value                  │
+│  UNIQUE        - All values in column must be different         │
+│  PRIMARY KEY   - NOT NULL + UNIQUE (identifies row)             │
+│  FOREIGN KEY   - Links to primary key in another table          │
+│  CHECK         - Values must satisfy a condition                │
+│  DEFAULT       - Sets default value if none provided            │
+│  INDEX         - Speeds up data retrieval (not a constraint)    │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### NOT NULL Constraint
+
+```sql
+CREATE TABLE employees (
+    id INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100)  -- Can be NULL
+);
+
+-- Adding NOT NULL to existing column
+ALTER TABLE employees MODIFY email VARCHAR(100) NOT NULL;
+```
+
+#### UNIQUE Constraint
+
+```sql
+CREATE TABLE users (
+    id INT PRIMARY KEY,
+    email VARCHAR(100) UNIQUE,
+    phone VARCHAR(15) UNIQUE
+);
+
+-- Named constraint
+CREATE TABLE users (
+    id INT PRIMARY KEY,
+    email VARCHAR(100),
+    CONSTRAINT uk_email UNIQUE (email)
+);
+
+-- Composite unique (combination must be unique)
+CREATE TABLE enrollments (
+    student_id INT,
+    course_id INT,
+    UNIQUE (student_id, course_id)
+);
+```
+
+#### CHECK Constraint
+
+```sql
+CREATE TABLE employees (
+    id INT PRIMARY KEY,
+    name VARCHAR(100),
+    age INT CHECK (age >= 18 AND age <= 65),
+    salary DECIMAL(10,2) CHECK (salary > 0),
+    status VARCHAR(20) CHECK (status IN ('active', 'inactive', 'pending'))
+);
+
+-- Named CHECK constraint
+CREATE TABLE products (
+    id INT PRIMARY KEY,
+    price DECIMAL(10,2),
+    discount DECIMAL(5,2),
+    CONSTRAINT chk_discount CHECK (discount >= 0 AND discount <= price)
+);
+```
+
+#### DEFAULT Constraint
+
+```sql
+CREATE TABLE orders (
+    id INT PRIMARY KEY,
+    order_date DATE DEFAULT CURRENT_DATE,
+    status VARCHAR(20) DEFAULT 'pending',
+    quantity INT DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert without specifying default columns
+INSERT INTO orders (id) VALUES (1);
+-- Result: order_date = today, status = 'pending', quantity = 1
+```
+
+#### Constraint Summary Example
+
+```sql
+CREATE TABLE employees (
+    emp_id INT PRIMARY KEY AUTO_INCREMENT,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    phone VARCHAR(15) UNIQUE,
+    hire_date DATE DEFAULT CURRENT_DATE,
+    salary DECIMAL(10,2) CHECK (salary >= 0),
+    department_id INT,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+
+    FOREIGN KEY (department_id) REFERENCES departments(dept_id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+);
+```
 
 ---
 
-### Clustered vs Non-Clustered Index
+### Data Types
 
-| Clustered Index                  | Non-Clustered Index              |
-|----------------------------------|----------------------------------|
-| Determines physical order of data| Separate structure pointing to data |
-| Only one per table               | Multiple allowed                 |
-| Faster for range queries         | Faster for specific lookups      |
-| Table IS the index               | Index points to table            |
-| Primary key by default           | Created manually                 |
+#### Numeric Types
 
-**Clustered Index:**
-```sql
-CREATE CLUSTERED INDEX idx_id ON Student(student_id);
+```
+┌────────────────────────────────────────────────────────────────┐
+│                     NUMERIC DATA TYPES                         │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  INTEGER TYPES:                                                │
+│  ─────────────                                                 │
+│  TINYINT     │ 1 byte  │ -128 to 127 (0 to 255 unsigned)       │
+│  SMALLINT    │ 2 bytes │ -32,768 to 32,767                     │
+│  MEDIUMINT   │ 3 bytes │ -8M to 8M                             │
+│  INT/INTEGER │ 4 bytes │ -2B to 2B                             │
+│  BIGINT      │ 8 bytes │ -9 quintillion to 9 quintillion       │
+│                                                                │
+│  DECIMAL TYPES:                                                │
+│  ─────────────                                                 │
+│  DECIMAL(p,s) │ Exact precision │ For money/finance            │
+│  NUMERIC(p,s) │ Same as DECIMAL │                              │
+│  FLOAT        │ 4 bytes         │ Approximate, ~7 digits       │
+│  DOUBLE       │ 8 bytes         │ Approximate, ~15 digits      │
+│                                                                │
+│  p = precision (total digits), s = scale (decimal places)      │
+│  DECIMAL(10,2) = 12345678.90 (8 digits + 2 decimals)           │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
 ```
 
-**Non-Clustered Index:**
 ```sql
-CREATE NONCLUSTERED INDEX idx_name ON Student(name);
+CREATE TABLE products (
+    id INT,
+    quantity SMALLINT,
+    price DECIMAL(10, 2),      -- Exact: 99999999.99
+    weight FLOAT,              -- Approximate
+    rating DECIMAL(3, 2)       -- 0.00 to 9.99
+);
+```
+
+#### String Types
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                     STRING DATA TYPES                          │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  CHAR(n)      │ Fixed length, padded with spaces │ Max 255     │
+│  VARCHAR(n)   │ Variable length                  │ Max 65,535  │
+│  TEXT         │ Variable length, large text      │ Max 65,535  │
+│  MEDIUMTEXT   │ Larger text                      │ Max 16MB    │
+│  LONGTEXT     │ Huge text                        │ Max 4GB     │
+│                                                                │
+│  CHAR vs VARCHAR:                                              │
+│  ───────────────                                               │
+│  CHAR(10) 'abc'     → 'abc       ' (7 spaces padded)           │
+│  VARCHAR(10) 'abc'  → 'abc' (no padding, 3 chars stored)       │
+│                                                                │
+│  Use CHAR for: Fixed-length codes (country_code, status)       │
+│  Use VARCHAR for: Variable-length (names, emails, addresses)   │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+```sql
+CREATE TABLE users (
+    id INT,
+    country_code CHAR(2),        -- 'US', 'IN', 'UK'
+    name VARCHAR(100),           -- Variable length
+    bio TEXT,                    -- Long text
+    profile_json LONGTEXT        -- Very large text/JSON
+);
+```
+
+#### Date & Time Types
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                   DATE & TIME DATA TYPES                       │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  DATE       │ 'YYYY-MM-DD'              │ '2024-01-15'         │
+│  TIME       │ 'HH:MM:SS'                │ '14:30:00'           │
+│  DATETIME   │ 'YYYY-MM-DD HH:MM:SS'     │ '2024-01-15 14:30:00'│
+│  TIMESTAMP  │ Same as DATETIME          │ Auto-converts to UTC │
+│  YEAR       │ 'YYYY'                    │ '2024'               │
+│                                                                │
+│  DATETIME vs TIMESTAMP:                                        │
+│  ──────────────────────                                        │
+│  DATETIME  - Stores exact value, no timezone conversion        │
+│  TIMESTAMP - Converts to UTC on storage, back on retrieval     │
+│            - Range: 1970-2038 (32-bit limit)                   │
+│            - Good for: created_at, updated_at                  │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+```sql
+CREATE TABLE events (
+    id INT,
+    event_date DATE,
+    start_time TIME,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    scheduled_at DATETIME
+);
+```
+
+#### Other Important Types
+
+```sql
+-- BOOLEAN
+CREATE TABLE users (
+    id INT,
+    is_active BOOLEAN DEFAULT TRUE,  -- Stored as TINYINT(1)
+    is_verified BOOL DEFAULT FALSE
+);
+
+-- ENUM (predefined values)
+CREATE TABLE orders (
+    id INT,
+    status ENUM('pending', 'processing', 'shipped', 'delivered') DEFAULT 'pending'
+);
+
+-- SET (multiple values from predefined list)
+CREATE TABLE users (
+    id INT,
+    permissions SET('read', 'write', 'delete', 'admin')
+);
+INSERT INTO users VALUES (1, 'read,write');
+
+-- JSON (MySQL 5.7+, PostgreSQL)
+CREATE TABLE products (
+    id INT,
+    attributes JSON
+);
+INSERT INTO products VALUES (1, '{"color": "red", "size": "XL"}');
+
+-- BLOB (Binary Large Object)
+CREATE TABLE files (
+    id INT,
+    file_data BLOB,           -- Up to 65KB
+    image MEDIUMBLOB,         -- Up to 16MB
+    video LONGBLOB            -- Up to 4GB
+);
+
+-- UUID (PostgreSQL native, MySQL as CHAR/BINARY)
+-- PostgreSQL
+CREATE TABLE users (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY
+);
+-- MySQL
+CREATE TABLE users (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID())
+);
+```
+
+#### Auto Increment / Sequences
+
+```sql
+-- MySQL: AUTO_INCREMENT
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100)
+);
+
+-- PostgreSQL: SERIAL / IDENTITY
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,           -- Old way
+    name VARCHAR(100)
+);
+
+CREATE TABLE users (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,  -- New way (SQL standard)
+    name VARCHAR(100)
+);
+
+-- Oracle: SEQUENCE
+CREATE SEQUENCE user_seq START WITH 1 INCREMENT BY 1;
+INSERT INTO users (id, name) VALUES (user_seq.NEXTVAL, 'John');
+
+-- Getting last inserted ID
+-- MySQL
+SELECT LAST_INSERT_ID();
+
+-- PostgreSQL
+INSERT INTO users (name) VALUES ('John') RETURNING id;
+
+-- SQL Server
+SELECT SCOPE_IDENTITY();
 ```
 
 ---
 
-### Composite Index
-A composite index (compound index) includes multiple columns.
+## 5. SQL Basics & Query Execution
 
-**Example:**
+### SQL Query Execution Order
+
+**Important:** SQL executes in a different order than written!
+
 ```sql
-CREATE INDEX idx_name_age ON Student(name, age);
+-- WRITTEN ORDER:
+SELECT column           -- 5th
+FROM table              -- 1st
+WHERE condition         -- 2nd
+GROUP BY column         -- 3rd
+HAVING condition        -- 4th
+ORDER BY column         -- 6th
+LIMIT n                 -- 7th
+
+-- EXECUTION ORDER:
+1. FROM table          → Get the data source
+2. WHERE condition     → Filter individual rows
+3. GROUP BY column     → Group rows together
+4. HAVING condition    → Filter groups
+5. SELECT column       → Choose columns to display
+6. ORDER BY column     → Sort results
+7. LIMIT n             → Limit output rows
 ```
 
-**Best for queries:**
+**Why does this matter?**
 ```sql
-SELECT * FROM Student WHERE name = 'Alice' AND age = 20;
-```
+-- This WORKS (column alias in ORDER BY)
+SELECT name, salary * 12 AS annual_salary
+FROM employees
+ORDER BY annual_salary;  -- OK: ORDER BY runs after SELECT
 
----
+-- This FAILS (column alias in WHERE)
+SELECT name, salary * 12 AS annual_salary
+FROM employees
+WHERE annual_salary > 50000;  -- ERROR: WHERE runs before SELECT
 
-### When NOT to Use Indexes
-
-Avoid indexes when:
-- ❌ Table is small (full scan is faster)
-- ❌ Column has low cardinality (few unique values like gender)
-- ❌ Column is rarely used in WHERE/JOIN/ORDER BY
-- ❌ Table has heavy INSERT/UPDATE/DELETE operations
-- ❌ Column values are frequently updated
-- ❌ Large portion of table is selected
-
----
-
-### Covering Index
-A covering index contains all columns needed by a query, avoiding table access entirely.
-
-**Example:**
-```sql
-CREATE INDEX idx_covering ON Student(name, age, email);
-
--- This query is fully covered by index
-SELECT name, age, email FROM Student WHERE name = 'Alice';
-```
-
----
-
-## SQL Interview Questions
-
-### 1. WHERE vs HAVING
-
-| WHERE                              | HAVING                              |
-|------------------------------------|-------------------------------------|
-| Filter rows **before** grouping    | Filter groups **after** GROUP BY    |
-| Can't use aggregate functions      | Can use aggregate functions         |
-| Used with SELECT, UPDATE, DELETE   | Used only with SELECT               |
-
-**Example:**
-```sql
--- WHERE
-SELECT * FROM Students WHERE age > 18;
-
--- HAVING
-SELECT dept, COUNT(*) as count
-FROM Students
-GROUP BY dept
-HAVING COUNT(*) > 5;
+-- Fix:
+SELECT name, salary * 12 AS annual_salary
+FROM employees
+WHERE salary * 12 > 50000;  -- Use actual expression
 ```
 
 ---
 
-### 2. JOIN Types
+### Basic SQL Operations
+
+#### SELECT - Read Data
+```sql
+-- Basic select
+SELECT * FROM employees;
+
+-- Select specific columns
+SELECT name, salary FROM employees;
+
+-- With alias
+SELECT name AS employee_name, salary * 12 AS annual_salary
+FROM employees;
+
+-- With conditions
+SELECT * FROM employees WHERE salary > 50000;
+
+-- With sorting
+SELECT * FROM employees ORDER BY salary DESC;
+
+-- With limit
+SELECT * FROM employees LIMIT 10;
+```
+
+#### INSERT - Create Data
+```sql
+-- Single row
+INSERT INTO employees (name, salary, dept_id)
+VALUES ('John', 50000, 1);
+
+-- Multiple rows
+INSERT INTO employees (name, salary, dept_id)
+VALUES
+    ('Alice', 60000, 1),
+    ('Bob', 55000, 2),
+    ('Charlie', 70000, 1);
+
+-- Insert from select
+INSERT INTO employee_archive
+SELECT * FROM employees WHERE status = 'inactive';
+```
+
+#### UPDATE - Modify Data
+```sql
+-- Update single column
+UPDATE employees SET salary = 55000 WHERE id = 1;
+
+-- Update multiple columns
+UPDATE employees
+SET salary = 60000, dept_id = 2
+WHERE id = 1;
+
+-- Update with calculation
+UPDATE employees SET salary = salary * 1.1;  -- 10% raise for all
+```
+
+#### DELETE - Remove Data
+```sql
+-- Delete specific rows
+DELETE FROM employees WHERE id = 1;
+
+-- Delete with condition
+DELETE FROM employees WHERE status = 'inactive';
+
+-- Delete all (use TRUNCATE for better performance)
+DELETE FROM employees;
+```
+
+---
+
+### JOINs
+
+```
+Tables:
+employees                      departments
+┌────┬───────┬─────────┐      ┌─────────┬───────────┐
+│ id │ name  │ dept_id │      │ dept_id │ dept_name │
+├────┼───────┼─────────┤      ├─────────┼───────────┤
+│ 1  │ Alice │ 1       │      │ 1       │ IT        │
+│ 2  │ Bob   │ 2       │      │ 2       │ HR        │
+│ 3  │ Carol │ NULL    │      │ 3       │ Finance   │
+└────┴───────┴─────────┘      └─────────┴───────────┘
+```
 
 #### INNER JOIN
 Returns only matching rows from both tables.
 
 ```sql
-SELECT s.name, c.course_name
-FROM Student s
-INNER JOIN Enrollment e ON s.student_id = e.student_id
-INNER JOIN Course c ON e.course_id = c.course_id;
+SELECT e.name, d.dept_name
+FROM employees e
+INNER JOIN departments d ON e.dept_id = d.dept_id;
+
+-- Result:
+-- Alice | IT
+-- Bob   | HR
+-- (Carol excluded - no matching dept)
+-- (Finance excluded - no matching employee)
 ```
 
 #### LEFT JOIN
-Returns all rows from left table + matching rows from right (NULL if no match).
+Returns all rows from left table + matching from right.
 
 ```sql
-SELECT s.name, e.course_id
-FROM Student s
-LEFT JOIN Enrollment e ON s.student_id = e.student_id;
+SELECT e.name, d.dept_name
+FROM employees e
+LEFT JOIN departments d ON e.dept_id = d.dept_id;
+
+-- Result:
+-- Alice | IT
+-- Bob   | HR
+-- Carol | NULL  (included, no match)
 ```
 
 #### RIGHT JOIN
-Returns all rows from right table + matching rows from left (NULL if no match).
+Returns all rows from right table + matching from left.
 
 ```sql
-SELECT s.name, c.course_name
-FROM Student s
-RIGHT JOIN Course c ON s.student_id = c.student_id;
+SELECT e.name, d.dept_name
+FROM employees e
+RIGHT JOIN departments d ON e.dept_id = d.dept_id;
+
+-- Result:
+-- Alice   | IT
+-- Bob     | HR
+-- NULL    | Finance  (included, no match)
 ```
 
 #### FULL OUTER JOIN
 Returns all rows from both tables.
 
 ```sql
-SELECT s.name, c.course_name
-FROM Student s
-FULL OUTER JOIN Course c ON s.student_id = c.student_id;
+SELECT e.name, d.dept_name
+FROM employees e
+FULL OUTER JOIN departments d ON e.dept_id = d.dept_id;
+
+-- Result:
+-- Alice | IT
+-- Bob   | HR
+-- Carol | NULL
+-- NULL  | Finance
 ```
 
----
+#### CROSS JOIN
+Returns Cartesian product (every combination).
 
-### 3. UNION vs UNION ALL
-
-| UNION                    | UNION ALL              |
-|--------------------------|------------------------|
-| Removes duplicate rows   | Keeps all rows         |
-| Comparatively slower     | Comparatively faster   |
-| Performs DISTINCT        | No DISTINCT operation  |
-
-**Example:**
 ```sql
--- UNION (removes duplicates)
-SELECT name FROM Student
-UNION
-SELECT name FROM Teacher;
+SELECT e.name, d.dept_name
+FROM employees e
+CROSS JOIN departments d;
 
--- UNION ALL (keeps duplicates)
-SELECT name FROM Student
-UNION ALL
-SELECT name FROM Teacher;
+-- Result: 3 employees × 3 departments = 9 rows
 ```
 
----
+#### SELF JOIN
+Join table with itself.
 
-### 4. DELETE vs TRUNCATE vs DROP
-
-| Command  | Description                    | Rollback | Speed  |
-|----------|--------------------------------|----------|--------|
-| DELETE   | Remove specific rows           | ✅ Yes   | Slow   |
-| TRUNCATE | Remove all rows, keep structure| ❌ No    | Fast   |
-| DROP     | Remove entire table            | ❌ No    | Fast   |
-
-**Example:**
 ```sql
--- DELETE (specific rows, can rollback)
-DELETE FROM Student WHERE age < 18;
-
--- TRUNCATE (all rows, cannot rollback)
-TRUNCATE TABLE Student;
-
--- DROP (entire table, cannot rollback)
-DROP TABLE Student;
+-- Find employees and their managers
+SELECT e.name AS employee, m.name AS manager
+FROM employees e
+LEFT JOIN employees m ON e.manager_id = m.id;
 ```
 
 ---
 
-### 5. GROUP BY vs ORDER BY
+### Aggregations & Grouping
 
-| GROUP BY                          | ORDER BY                     |
-|-----------------------------------|------------------------------|
-| Groups rows with same values      | Sorts result set             |
-| Used with aggregate functions     | Used for sorting             |
-| Reduces number of rows            | Doesn't reduce rows          |
-
-**Example:**
-```sql
--- GROUP BY
-SELECT dept, COUNT(*) as count
-FROM Student
-GROUP BY dept;
-
--- ORDER BY
-SELECT name, age
-FROM Student
-ORDER BY age DESC;
-```
-
----
-
-### 6. DISTINCT
-
-Removes duplicate rows from result set.
-
-**Example:**
-```sql
-SELECT DISTINCT city FROM Student;
-```
-
----
-
-### 7. Aggregate Functions
-
-Perform calculations on a set of values and return a single value.
-
-**Common Aggregate Functions:**
-- **COUNT()** - Count rows
-- **SUM()** - Sum values
-- **AVG()** - Average value
-- **MAX()** - Maximum value
-- **MIN()** - Minimum value
-
-**Example:**
+#### Aggregate Functions
 ```sql
 SELECT
-    COUNT(*) as total_students,
-    AVG(age) as average_age,
-    MAX(age) as oldest,
-    MIN(age) as youngest
-FROM Student;
+    COUNT(*) AS total_employees,
+    COUNT(DISTINCT dept_id) AS departments,
+    SUM(salary) AS total_salary,
+    AVG(salary) AS average_salary,
+    MAX(salary) AS highest_salary,
+    MIN(salary) AS lowest_salary
+FROM employees;
+```
+
+#### GROUP BY
+```sql
+-- Count employees per department
+SELECT dept_id, COUNT(*) AS employee_count
+FROM employees
+GROUP BY dept_id;
+
+-- Average salary per department
+SELECT dept_id, AVG(salary) AS avg_salary
+FROM employees
+GROUP BY dept_id;
+```
+
+#### HAVING (Filter Groups)
+```sql
+-- Departments with more than 5 employees
+SELECT dept_id, COUNT(*) AS employee_count
+FROM employees
+GROUP BY dept_id
+HAVING COUNT(*) > 5;
+
+-- WHERE vs HAVING
+SELECT dept_id, AVG(salary) AS avg_salary
+FROM employees
+WHERE status = 'active'      -- Filter ROWS before grouping
+GROUP BY dept_id
+HAVING AVG(salary) > 50000;  -- Filter GROUPS after grouping
 ```
 
 ---
 
-### 8. Subquery
+### Subqueries
 
-A query nested inside another query.
-
-**Types:**
-- **Scalar subquery** - Returns single value
-- **Row subquery** - Returns single row
-- **Table subquery** - Returns multiple rows
-
-**Example:**
+#### Scalar Subquery (Returns single value)
 ```sql
--- Scalar subquery
-SELECT name
-FROM Student
-WHERE age > (SELECT AVG(age) FROM Student);
-
--- Correlated subquery
-SELECT name
-FROM Student s
-WHERE age > (SELECT AVG(age) FROM Student WHERE dept = s.dept);
+-- Employees earning above average
+SELECT name, salary
+FROM employees
+WHERE salary > (SELECT AVG(salary) FROM employees);
 ```
 
----
-
-### 9. IN vs EXISTS
-
-| IN                               | EXISTS                           |
-|----------------------------------|----------------------------------|
-| Compares value with list         | Checks if subquery returns rows  |
-| Slower for large datasets        | Faster for large datasets        |
-| Returns actual values            | Returns true/false               |
-
-**Example:**
+#### Row Subquery (Returns single row)
 ```sql
--- IN
-SELECT name FROM Student WHERE dept_id IN (1, 2, 3);
-
--- EXISTS
-SELECT name FROM Student s
-WHERE EXISTS (SELECT 1 FROM Enrollment e WHERE e.student_id = s.student_id);
+-- Employee with highest salary
+SELECT * FROM employees
+WHERE (dept_id, salary) = (
+    SELECT dept_id, MAX(salary)
+    FROM employees
+    GROUP BY dept_id
+    LIMIT 1
+);
 ```
 
----
-
-### 10. CHAR vs VARCHAR
-
-| CHAR                          | VARCHAR                       |
-|-------------------------------|-------------------------------|
-| Fixed length                  | Variable length               |
-| Padded with spaces            | No padding                    |
-| Faster for fixed-size data    | More space-efficient          |
-| Max 255 characters            | Max 65,535 characters         |
-
-**Example:**
+#### Table Subquery (Returns multiple rows)
 ```sql
-CREATE TABLE Example (
-    code CHAR(5),        -- Always 5 characters
-    name VARCHAR(100)    -- Up to 100 characters
+-- Employees in IT or HR
+SELECT * FROM employees
+WHERE dept_id IN (
+    SELECT dept_id FROM departments
+    WHERE dept_name IN ('IT', 'HR')
+);
+```
+
+#### Correlated Subquery
+```sql
+-- Employees earning above their department average
+SELECT e.name, e.salary, e.dept_id
+FROM employees e
+WHERE e.salary > (
+    SELECT AVG(salary)
+    FROM employees
+    WHERE dept_id = e.dept_id  -- References outer query
 );
 ```
 
 ---
 
-## Advanced Topics
+### UNION Operations
 
-### Connection Pooling
-Reuses database connections instead of creating new ones for each request.
-
-**Benefits:**
-- Faster connections
-- Reduced overhead
-- Better resource management
-
-**Popular libraries:** HikariCP, C3P0, Apache DBCP
-
----
-
-### Clustering
-Multiple database servers working together as a single system.
-
-**Benefits:**
-- High availability
-- Load balancing
-- Fault tolerance
-
----
-
-### Replication
-Copying data from one database (master) to another (slave).
-
-**Types:**
-- **Master-Slave** - One master, multiple slaves
-- **Master-Master** - Multiple masters
-
----
-
-### Partitioning
-Dividing large table into smaller, manageable pieces.
-
-**Types:**
-- **Horizontal** - Split by rows (sharding)
-- **Vertical** - Split by columns
-
-**Benefits:**
-- Improved query performance
-- Better manageability
-- Parallel processing
-
----
-
-## Summary
-
-**Core Concepts:** PK, FK, UK, ACID, Normalization
-
-**Relationships:** 1:1, 1:N, M:N, Junction tables
-
-**Indexes:** Clustered, Non-clustered, Composite, Covering
-
-**Queries:** WHERE, HAVING, JOINs, UNION, Subqueries
-
-**Advanced:** Connection pooling, Clustering, Replication, Partitioning
-
----
-
-This is your complete database reference guide for coding interviews! 🚀
-
----
-
-## Transactions (Detailed)
-
-### What is a Transaction?
-
-**Definition:** A sequence of database operations that are treated as a single unit of work. Either all operations succeed, or none do.
-
-**Example:**
 ```sql
--- Bank transfer transaction
-START TRANSACTION;
+-- UNION (removes duplicates)
+SELECT name FROM employees
+UNION
+SELECT name FROM contractors;
 
-UPDATE accounts SET balance = balance - 100 WHERE account_id = 1;
-UPDATE accounts SET balance = balance + 100 WHERE account_id = 2;
+-- UNION ALL (keeps duplicates, faster)
+SELECT name FROM employees
+UNION ALL
+SELECT name FROM contractors;
+```
 
-COMMIT;  -- If both succeed
--- or
-ROLLBACK;  -- If any fails
+| UNION | UNION ALL |
+|-------|-----------|
+| Removes duplicates | Keeps all rows |
+| Slower (sorts data) | Faster |
+| Uses DISTINCT internally | No deduplication |
+
+---
+
+## 6. SQL Functions
+
+### String Functions
+
+```sql
+-- LENGTH / CHAR_LENGTH
+SELECT LENGTH('Hello');                    -- 5
+SELECT CHAR_LENGTH('Hello');               -- 5
+
+-- CONCAT / CONCAT_WS
+SELECT CONCAT('Hello', ' ', 'World');      -- 'Hello World'
+SELECT CONCAT_WS('-', '2024', '01', '15'); -- '2024-01-15'
+
+-- UPPER / LOWER
+SELECT UPPER('hello');                     -- 'HELLO'
+SELECT LOWER('HELLO');                     -- 'hello'
+
+-- TRIM / LTRIM / RTRIM
+SELECT TRIM('  hello  ');                  -- 'hello'
+SELECT LTRIM('  hello');                   -- 'hello'
+SELECT RTRIM('hello  ');                   -- 'hello'
+
+-- SUBSTRING / SUBSTR
+SELECT SUBSTRING('Hello World', 1, 5);     -- 'Hello'
+SELECT SUBSTRING('Hello World', 7);        -- 'World'
+
+-- LEFT / RIGHT
+SELECT LEFT('Hello', 3);                   -- 'Hel'
+SELECT RIGHT('Hello', 3);                  -- 'llo'
+
+-- REPLACE
+SELECT REPLACE('Hello World', 'World', 'SQL');  -- 'Hello SQL'
+
+-- REVERSE
+SELECT REVERSE('Hello');                   -- 'olleH'
+
+-- INSTR / LOCATE (find position)
+SELECT INSTR('Hello World', 'o');          -- 5 (first occurrence)
+SELECT LOCATE('o', 'Hello World', 6);      -- 8 (search from position 6)
+
+-- LPAD / RPAD (padding)
+SELECT LPAD('123', 5, '0');                -- '00123'
+SELECT RPAD('123', 5, '0');                -- '12300'
+
+-- COALESCE (first non-null)
+SELECT COALESCE(NULL, NULL, 'default');    -- 'default'
+SELECT COALESCE(name, 'Unknown') FROM users;
 ```
 
 ---
+
+### Numeric Functions
+
+```sql
+-- ROUND / CEIL / FLOOR
+SELECT ROUND(3.567, 2);         -- 3.57
+SELECT ROUND(3.567);            -- 4
+SELECT CEIL(3.1);               -- 4
+SELECT FLOOR(3.9);              -- 3
+
+-- ABS / SIGN
+SELECT ABS(-5);                 -- 5
+SELECT SIGN(-5);                -- -1 (negative)
+SELECT SIGN(5);                 -- 1 (positive)
+SELECT SIGN(0);                 -- 0
+
+-- MOD / % (modulo)
+SELECT MOD(10, 3);              -- 1
+SELECT 10 % 3;                  -- 1
+
+-- POWER / SQRT
+SELECT POWER(2, 3);             -- 8 (2^3)
+SELECT SQRT(16);                -- 4
+
+-- TRUNCATE
+SELECT TRUNCATE(3.567, 2);      -- 3.56 (no rounding)
+
+-- RAND (random number 0-1)
+SELECT RAND();                  -- 0.123456...
+SELECT FLOOR(RAND() * 100);     -- Random 0-99
+```
+
+---
+
+### Date & Time Functions
+
+```sql
+-- Current date/time
+SELECT CURRENT_DATE;            -- '2024-01-15'
+SELECT CURRENT_TIME;            -- '14:30:00'
+SELECT CURRENT_TIMESTAMP;       -- '2024-01-15 14:30:00'
+SELECT NOW();                   -- '2024-01-15 14:30:00'
+
+-- Extract parts
+SELECT YEAR('2024-01-15');      -- 2024
+SELECT MONTH('2024-01-15');     -- 1
+SELECT DAY('2024-01-15');       -- 15
+SELECT HOUR('14:30:00');        -- 14
+SELECT MINUTE('14:30:00');      -- 30
+SELECT SECOND('14:30:00');      -- 0
+
+-- EXTRACT (SQL Standard)
+SELECT EXTRACT(YEAR FROM '2024-01-15');    -- 2024
+SELECT EXTRACT(MONTH FROM '2024-01-15');   -- 1
+
+-- DATE_ADD / DATE_SUB
+SELECT DATE_ADD('2024-01-15', INTERVAL 1 DAY);    -- '2024-01-16'
+SELECT DATE_ADD('2024-01-15', INTERVAL 1 MONTH);  -- '2024-02-15'
+SELECT DATE_SUB('2024-01-15', INTERVAL 1 YEAR);   -- '2023-01-15'
+
+-- DATEDIFF (difference in days)
+SELECT DATEDIFF('2024-01-20', '2024-01-15');      -- 5
+
+-- DATE_FORMAT (MySQL)
+SELECT DATE_FORMAT('2024-01-15', '%d/%m/%Y');     -- '15/01/2024'
+SELECT DATE_FORMAT('2024-01-15', '%W, %M %d');    -- 'Monday, January 15'
+
+-- TO_CHAR (PostgreSQL, Oracle)
+SELECT TO_CHAR(NOW(), 'DD/MM/YYYY');              -- '15/01/2024'
+
+-- DAYNAME / MONTHNAME
+SELECT DAYNAME('2024-01-15');   -- 'Monday'
+SELECT MONTHNAME('2024-01-15'); -- 'January'
+
+-- Last day of month
+SELECT LAST_DAY('2024-02-15');  -- '2024-02-29'
+```
+
+---
+
+### Conditional Functions
+
+```sql
+-- CASE WHEN (most flexible)
+SELECT
+    name,
+    salary,
+    CASE
+        WHEN salary >= 100000 THEN 'High'
+        WHEN salary >= 50000 THEN 'Medium'
+        ELSE 'Low'
+    END AS salary_grade
+FROM employees;
+
+-- Simple CASE
+SELECT
+    status,
+    CASE status
+        WHEN 'A' THEN 'Active'
+        WHEN 'I' THEN 'Inactive'
+        WHEN 'P' THEN 'Pending'
+        ELSE 'Unknown'
+    END AS status_name
+FROM users;
+
+-- IF (MySQL)
+SELECT IF(score >= 60, 'Pass', 'Fail') AS result FROM students;
+
+-- IIF (SQL Server)
+SELECT IIF(score >= 60, 'Pass', 'Fail') AS result FROM students;
+
+-- IFNULL / ISNULL / NVL (handle NULL)
+SELECT IFNULL(phone, 'N/A') FROM users;           -- MySQL
+SELECT ISNULL(phone, 'N/A') FROM users;           -- SQL Server
+SELECT NVL(phone, 'N/A') FROM users;              -- Oracle
+SELECT COALESCE(phone, 'N/A') FROM users;         -- Standard SQL
+
+-- NULLIF (returns NULL if equal)
+SELECT NULLIF(value, 0);                          -- Returns NULL if value is 0
+SELECT total / NULLIF(count, 0);                  -- Avoid division by zero
+
+-- GREATEST / LEAST
+SELECT GREATEST(10, 20, 15);    -- 20
+SELECT LEAST(10, 20, 15);       -- 10
+```
+
+---
+
+### Aggregate Functions (Review)
+
+```sql
+-- Basic aggregates
+SELECT COUNT(*) FROM orders;                    -- Count all rows
+SELECT COUNT(DISTINCT category) FROM products;  -- Count unique values
+SELECT SUM(amount) FROM orders;                 -- Sum
+SELECT AVG(salary) FROM employees;              -- Average
+SELECT MAX(price) FROM products;                -- Maximum
+SELECT MIN(price) FROM products;                -- Minimum
+
+-- GROUP_CONCAT / STRING_AGG (combine values)
+-- MySQL
+SELECT department, GROUP_CONCAT(name SEPARATOR ', ')
+FROM employees GROUP BY department;
+-- Result: 'IT', 'John, Jane, Bob'
+
+-- PostgreSQL
+SELECT department, STRING_AGG(name, ', ')
+FROM employees GROUP BY department;
+
+-- SQL Server
+SELECT department, STRING_AGG(name, ', ')
+FROM employees GROUP BY department;
+```
+
+---
+
+## 7. Database Design
+
+### Normalization
+
+**Purpose:** Organize data to reduce redundancy and improve integrity.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     NORMALIZATION LEVELS                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Unnormalized ──► 1NF ──► 2NF ──► 3NF ──► BCNF                  │
+│                                                                 │
+│  Less Normal ◄──────────────────────────────────► More Normal   │
+│  More Redundancy                              Less Redundancy   │
+│  Faster Reads                                 Faster Writes     │
+│  Slower Writes                                More Joins        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+#### 1NF (First Normal Form)
+
+**Rule:** Each column contains atomic (indivisible) values.
+
+**Before 1NF (Violates):**
+```
+┌────────────┬───────┬───────────────────┐
+│ student_id │ name  │ courses           │
+├────────────┼───────┼───────────────────┤
+│ 1          │ Alice │ Math, Physics     │  ← Multiple values!
+│ 2          │ Bob   │ Chemistry         │
+└────────────┴───────┴───────────────────┘
+```
+
+**After 1NF:**
+```
+┌────────────┬───────┬───────────┐
+│ student_id │ name  │ course    │
+├────────────┼───────┼───────────┤
+│ 1          │ Alice │ Math      │  ← One value per cell
+│ 1          │ Alice │ Physics   │
+│ 2          │ Bob   │ Chemistry │
+└────────────┴───────┴───────────┘
+```
+
+---
+
+#### 2NF (Second Normal Form)
+
+**Rule:** Must be in 1NF + No partial dependency (all non-key columns depend on entire primary key).
+
+**Before 2NF (Violates):**
+```
+Primary Key: (student_id, course_id)
+
+┌────────────┬───────────┬──────────────┬─────────────┐
+│ student_id │ course_id │ student_name │ course_name │
+├────────────┼───────────┼──────────────┼─────────────┤
+│ 1          │ 101       │ Alice        │ Math        │
+│ 1          │ 102       │ Alice        │ Physics     │
+└────────────┴───────────┴──────────────┴─────────────┘
+
+Problem: student_name depends only on student_id (partial dependency)
+         course_name depends only on course_id (partial dependency)
+```
+
+**After 2NF:**
+```
+Students Table:
+┌────────────┬──────────────┐
+│ student_id │ student_name │
+├────────────┼──────────────┤
+│ 1          │ Alice        │
+└────────────┴──────────────┘
+
+Courses Table:
+┌───────────┬─────────────┐
+│ course_id │ course_name │
+├───────────┼─────────────┤
+│ 101       │ Math        │
+│ 102       │ Physics     │
+└───────────┴─────────────┘
+
+Enrollments Table:
+┌────────────┬───────────┐
+│ student_id │ course_id │
+├────────────┼───────────┤
+│ 1          │ 101       │
+│ 1          │ 102       │
+└────────────┴───────────┘
+```
+
+---
+
+#### 3NF (Third Normal Form)
+
+**Rule:** Must be in 2NF + No transitive dependency (non-key columns don't depend on other non-key columns).
+
+**Before 3NF (Violates):**
+```
+┌────────────┬──────────────┬─────────┬───────────┐
+│ student_id │ student_name │ dept_id │ dept_name │
+├────────────┼──────────────┼─────────┼───────────┤
+│ 1          │ Alice        │ 10      │ CS        │
+│ 2          │ Bob          │ 10      │ CS        │
+└────────────┴──────────────┴─────────┴───────────┘
+
+Problem: dept_name depends on dept_id (not on student_id directly)
+         student_id → dept_id → dept_name (transitive)
+```
+
+**After 3NF:**
+```
+Students Table:
+┌────────────┬──────────────┬─────────┐
+│ student_id │ student_name │ dept_id │
+├────────────┼──────────────┼─────────┤
+│ 1          │ Alice        │ 10      │
+│ 2          │ Bob          │ 10      │
+└────────────┴──────────────┴─────────┘
+
+Departments Table:
+┌─────────┬───────────┐
+│ dept_id │ dept_name │
+├─────────┼───────────┤
+│ 10      │ CS        │
+└─────────┴───────────┘
+```
+
+---
+
+#### BCNF (Boyce-Codd Normal Form)
+
+**Rule:** Must be in 3NF + Every determinant is a candidate key.
+
+**Stricter than 3NF.** Used when a table has multiple candidate keys.
+
+---
+
+### Denormalization
+
+**Purpose:** Intentionally add redundancy to improve read performance.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    NORMALIZATION TRADE-OFFS                     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  NORMALIZED                        DENORMALIZED                 │
+│  ──────────                        ────────────                 │
+│  ✓ Less redundancy                 ✓ Faster reads               │
+│  ✓ Faster writes                   ✓ Fewer joins                │
+│  ✓ Data consistency                ✓ Simpler queries            │
+│  ✗ More joins (slower reads)       ✗ Data redundancy            │
+│  ✗ Complex queries                 ✗ Slower writes              │
+│                                    ✗ Inconsistency risk         │
+│                                                                 │
+│  Best for: OLTP, write-heavy       Best for: OLAP, read-heavy   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Example:**
+```sql
+-- Normalized: Need JOIN every time
+SELECT o.order_id, o.amount, c.name, c.email
+FROM orders o
+JOIN customers c ON o.customer_id = c.id;
+
+-- Denormalized: No JOIN needed
+SELECT order_id, amount, customer_name, customer_email
+FROM orders;  -- customer data stored in orders table
+```
+
+---
+
+### Entity-Relationship (ER) Diagrams
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      ER DIAGRAM SYMBOLS                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────┐                                                │
+│  │   ENTITY    │  Rectangle = Table                             │
+│  └─────────────┘                                                │
+│                                                                 │
+│  (  attribute  )  Oval = Column                                 │
+│                                                                 │
+│  ((derived_att))  Double Oval = Derived/Computed                │
+│                                                                 │
+│  ◇───────────◇    Diamond = Relationship                        │
+│                                                                 │
+│  ─────────────    Line = Connection                             │
+│                                                                 │
+│  ──────┤├─────    Cardinality: One                              │
+│  ──────<>─────    Cardinality: Many                             │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+Example ER Diagram:
+
+┌───────────────┐          ┌─────────────┐          ┌──────────────┐
+│   CUSTOMER    │          │    ORDER    │          │   PRODUCT    │
+├───────────────┤          ├─────────────┤          ├──────────────┤
+│ *customer_id  │──┐   ┌───│ *order_id   │───┐  ┌───│ *product_id  │
+│  name         │  │   │   │  order_date │   │  │   │  name        │
+│  email        │  │   │   │  total      │   │  │   │  price       │
+└───────────────┘  │   │   └─────────────┘   │  │   └──────────────┘
+                   │   │                     │  │
+                   │ 1:N                    M:N │
+                   │   │                     │  │
+                   └───┘                     └──┘
+
+                   One customer has many orders
+                   One order has many products (via order_items)
+```
+
+---
+
+## 8. Indexing & Performance
+
+### Why Indexes? The Phone Book Analogy
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    WITHOUT INDEX                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Query: Find student with ID 987654 (from 1 million students)   │
+│                                                                 │
+│  Process:                                                       │
+│  ─────────                                                      │
+│  Check row 1:      ID = 1       ✗                               │
+│  Check row 2:      ID = 2       ✗                               │
+│  Check row 3:      ID = 3       ✗                               │
+│  ...                                                            │
+│  Check row 987654: ID = 987654  ✓ FOUND!                        │
+│                                                                 │
+│  Result: Checked 987,654 rows (FULL TABLE SCAN)                 │
+│  Time: ~10 seconds                                              │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                     WITH INDEX (B-Tree)                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Index Structure:                                               │
+│                     500000                                      │
+│                    /      \                                     │
+│               250000      750000                                │
+│                          /      \                               │
+│                     625000      875000                          │
+│                                /      \                         │
+│                           812500      937500                    │
+│                                      /      \                   │
+│                                 906250      968750              │
+│                                            /      \             │
+│                                       953125      984375        │
+│                                                  /              │
+│                                             987654 ✓            │
+│                                                                 │
+│  Result: Checked only ~20 nodes (BINARY SEARCH)                 │
+│  Time: ~0.001 seconds (10,000x faster!)                         │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Index Types
+
+#### Clustered Index
+
+- Determines **physical order** of data on disk
+- Only **one per table**
+- Primary key creates clustered index by default
+- **Best for:** Range queries, sorting
+
+```sql
+-- Primary key = Clustered index
+CREATE TABLE users (
+    id INT PRIMARY KEY,  -- Clustered index created automatically
+    name VARCHAR(100)
+);
+
+-- Data stored in order of 'id' on disk
+```
+
+#### Non-Clustered Index
+
+- **Separate structure** pointing to data
+- **Multiple allowed** per table
+- Contains: indexed columns + pointer to row
+- **Best for:** Specific lookups
+
+```sql
+CREATE INDEX idx_email ON users(email);
+
+-- Index structure:
+-- email → row pointer
+-- "alice@email.com" → Row 1
+-- "bob@email.com" → Row 2
+```
+
+#### Composite Index
+
+Index on **multiple columns**.
+
+```sql
+CREATE INDEX idx_name_age ON users(name, age);
+
+-- Uses index:
+SELECT * FROM users WHERE name = 'John' AND age = 25;  ✓
+SELECT * FROM users WHERE name = 'John';               ✓ (leftmost prefix)
+SELECT * FROM users WHERE age = 25;                    ✗ (not leftmost!)
+```
+
+**Leftmost Prefix Rule:**
+```
+Index: (A, B, C)
+
+✓ WHERE A = ?
+✓ WHERE A = ? AND B = ?
+✓ WHERE A = ? AND B = ? AND C = ?
+✗ WHERE B = ?
+✗ WHERE C = ?
+✗ WHERE B = ? AND C = ?
+```
+
+#### Covering Index
+
+Index contains **all columns** needed by query (no table access).
+
+```sql
+CREATE INDEX idx_covering ON orders(customer_id, order_date, amount);
+
+-- This query uses ONLY the index (no table lookup)
+SELECT customer_id, order_date, amount
+FROM orders
+WHERE customer_id = 123;
+```
+
+---
+
+### When to Use Indexes
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     INDEX DECISION GUIDE                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ✅ USE INDEX WHEN:                                             │
+│  ─────────────────                                              │
+│  • Column used in WHERE frequently                              │
+│  • Column used in JOIN conditions                               │
+│  • Column used in ORDER BY                                      │
+│  • Column has high cardinality (many unique values)             │
+│  • Table is large (100K+ rows)                                  │
+│  • Read-heavy workload                                          │
+│                                                                 │
+│  ❌ AVOID INDEX WHEN:                                           │
+│  ─────────────────────                                          │
+│  • Table is small (< 1000 rows)                                 │
+│  • Column has low cardinality (gender: M/F)                     │
+│  • Column is rarely used in queries                             │
+│  • Table has heavy INSERT/UPDATE/DELETE                         │
+│  • Column values change frequently                              │
+│  • Large portion of table is selected (> 20%)                   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Index Costs
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      INDEX TRADE-OFFS                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  BENEFITS:                        COSTS:                        │
+│  ─────────                        ──────                        │
+│  ✅ SELECT: 100-10,000x faster   ❌ Storage: +10-20% disk       │
+│  ✅ WHERE: Much faster            ❌ INSERT: Slower (update idx)│
+│  ✅ JOIN: Much faster             ❌ UPDATE: Slower if idx col  │
+│  ✅ ORDER BY: Much faster         ❌ DELETE: Slower (update idx)│
+│                                   ❌ Memory: Index in RAM       │
+│                                                                 │
+│  Example (1M rows):                                             │
+│  ─────────────────                                              │
+│  Table size: 500 MB                                             │
+│  3 indexes: +100 MB storage                                     │
+│  INSERT time: 0.01s → 0.03s (3x slower)                         │
+│  SELECT time: 5s → 0.001s (5000x faster!)                       │
+│                                                                 │
+│  CONCLUSION: Trade slower writes for much faster reads          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Query Optimization
+
+#### Using EXPLAIN
+
+```sql
+EXPLAIN SELECT * FROM users WHERE email = 'john@example.com';
+
+-- Look for:
+-- type: ALL (bad - full scan) vs ref/const (good - using index)
+-- rows: Number of rows examined
+-- Extra: "Using index" (good) vs "Using filesort" (bad)
+```
+
+#### Optimization Tips
+
+```sql
+-- 1. Select only needed columns
+-- Bad
+SELECT * FROM users;
+-- Good
+SELECT id, name, email FROM users;
+
+-- 2. Use LIMIT
+SELECT * FROM orders ORDER BY created_at DESC LIMIT 10;
+
+-- 3. Avoid functions in WHERE (breaks index)
+-- Bad
+SELECT * FROM orders WHERE YEAR(created_at) = 2024;
+-- Good
+SELECT * FROM orders
+WHERE created_at >= '2024-01-01' AND created_at < '2025-01-01';
+
+-- 4. Use EXISTS instead of IN for large datasets
+-- Slower
+SELECT * FROM users WHERE id IN (SELECT user_id FROM orders);
+-- Faster
+SELECT * FROM users u WHERE EXISTS (SELECT 1 FROM orders o WHERE o.user_id = u.id);
+
+-- 5. Use JOIN instead of subquery
+-- Slower
+SELECT * FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE country = 'USA');
+-- Faster
+SELECT o.* FROM orders o JOIN customers c ON o.customer_id = c.id WHERE c.country = 'USA';
+
+-- 6. Avoid LIKE with leading wildcard
+-- Bad (no index)
+SELECT * FROM users WHERE name LIKE '%john%';
+-- Better (uses index)
+SELECT * FROM users WHERE name LIKE 'john%';
+```
+
+---
+
+## 9. Transactions & Concurrency
+
+### Transaction Basics
+
+```sql
+-- Start transaction
+START TRANSACTION;  -- or BEGIN;
+
+-- Perform operations
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+UPDATE accounts SET balance = balance + 100 WHERE id = 2;
+
+-- End transaction
+COMMIT;     -- Save changes permanently
+-- or
+ROLLBACK;   -- Undo all changes
+```
 
 ### Transaction States
 
 ```
-Active → Partially Committed → Committed
-  ↓
-Failed → Aborted
-```
-
-1. **Active** - Transaction is executing
-2. **Partially Committed** - Final operation executed
-3. **Committed** - Transaction completed successfully
-4. **Failed** - Error occurred
-5. **Aborted** - Transaction rolled back
-
----
-
-### Transaction Control Commands
-
-**START TRANSACTION / BEGIN**
-```sql
-START TRANSACTION;
--- or
-BEGIN;
-```
-
-**COMMIT** - Save all changes
-```sql
-COMMIT;
-```
-
-**ROLLBACK** - Undo all changes
-```sql
-ROLLBACK;
-```
-
-**SAVEPOINT** - Create checkpoint
-```sql
-SAVEPOINT sp1;
--- operations
-ROLLBACK TO sp1;  -- Rollback to savepoint
+                  ┌──────────────────┐
+                  │      Active      │
+                  └────────┬─────────┘
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+              ▼                         ▼
+    ┌─────────────────┐      ┌─────────────────┐
+    │    Partially    │      │     Failed      │
+    │    Committed    │      └────────┬────────┘
+    └────────┬────────┘               │
+             │                        ▼
+             ▼               ┌─────────────────┐
+    ┌─────────────────┐      │     Aborted     │
+    │    Committed    │      │   (Rolled Back) │
+    └─────────────────┘      └─────────────────┘
 ```
 
 ---
 
 ### Isolation Levels
 
-**Definition:** Degree to which transactions are isolated from each other.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      ISOLATION LEVELS                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Level              │ Dirty Read │ Non-Repeat │ Phantom │ Speed │
+│  ───────────────────┼────────────┼────────────┼─────────┼───────│
+│  READ UNCOMMITTED   │    Yes     │    Yes     │   Yes   │ Fast  │
+│  READ COMMITTED     │    No      │    Yes     │   Yes   │   ↑   │
+│  REPEATABLE READ    │    No      │    No      │   Yes   │   │   │
+│  SERIALIZABLE       │    No      │    No      │   No    │ Slow  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-| Isolation Level   | Dirty Read | Non-Repeatable Read | Phantom Read |
-|-------------------|------------|---------------------|--------------|
-| Read Uncommitted  | ✅ Yes     | ✅ Yes              | ✅ Yes       |
-| Read Committed    | ❌ No      | ✅ Yes              | ✅ Yes       |
-| Repeatable Read   | ❌ No      | ❌ No               | ✅ Yes       |
-| Serializable      | ❌ No      | ❌ No               | ❌ No        |
+#### Concurrency Problems Explained
 
-**Dirty Read:** Reading uncommitted data
-**Non-Repeatable Read:** Same query returns different results
-**Phantom Read:** New rows appear in subsequent reads
+**1. Dirty Read** - Reading uncommitted data
+```sql
+-- Transaction 1                    -- Transaction 2
+BEGIN;
+UPDATE products SET price = 100;
+                                    BEGIN;
+                                    SELECT price FROM products;  -- Reads 100
+ROLLBACK;                           -- But it was rolled back!
+                                    -- Transaction 2 has wrong data
+```
+
+**2. Non-Repeatable Read** - Same query, different results
+```sql
+-- Transaction 1                    -- Transaction 2
+BEGIN;
+SELECT balance FROM accounts;
+-- Returns 1000
+                                    BEGIN;
+                                    UPDATE accounts SET balance = 1500;
+                                    COMMIT;
+SELECT balance FROM accounts;
+-- Returns 1500 (different!)
+```
+
+**3. Phantom Read** - New rows appear
+```sql
+-- Transaction 1                    -- Transaction 2
+BEGIN;
+SELECT COUNT(*) FROM orders;
+-- Returns 10
+                                    BEGIN;
+                                    INSERT INTO orders VALUES (...);
+                                    COMMIT;
+SELECT COUNT(*) FROM orders;
+-- Returns 11 (phantom row!)
+```
 
 ---
 
-### Concurrency Problems
+### Locking Mechanisms
 
-**1. Dirty Read**
-```sql
--- Transaction 1
-UPDATE products SET price = 100 WHERE id = 1;
--- Not committed yet
-
--- Transaction 2
-SELECT price FROM products WHERE id = 1;  -- Reads 100 (dirty data)
-
--- Transaction 1
-ROLLBACK;  -- Price reverts to original
--- Transaction 2 read incorrect data!
-```
-
-**2. Lost Update**
-```sql
--- Transaction 1
-SELECT balance FROM accounts WHERE id = 1;  -- balance = 1000
-
--- Transaction 2
-SELECT balance FROM accounts WHERE id = 1;  -- balance = 1000
-
--- Transaction 1
-UPDATE accounts SET balance = 900 WHERE id = 1;  -- -100
-COMMIT;
-
--- Transaction 2
-UPDATE accounts SET balance = 1200 WHERE id = 1;  -- +200
-COMMIT;
-
--- Final balance should be 1100, but it's 1200 (lost update)
-```
-
----
-
-## Locking Mechanisms
-
-### Types of Locks
-
-**1. Shared Lock (S-Lock / Read Lock)**
-- Multiple transactions can hold shared locks
-- Prevents write, allows read
+#### Lock Types
 
 ```sql
+-- Shared Lock (Read Lock) - Multiple readers allowed
 SELECT * FROM products WHERE id = 1 FOR SHARE;
-```
 
-**2. Exclusive Lock (X-Lock / Write Lock)**
-- Only one transaction can hold exclusive lock
-- Prevents both read and write
-
-```sql
+-- Exclusive Lock (Write Lock) - Only one writer
 SELECT * FROM products WHERE id = 1 FOR UPDATE;
 ```
 
----
+#### Deadlock
 
-### Locking Granularity
+Two transactions waiting for each other forever.
 
-**1. Row-level Locking** - Lock specific rows
-**2. Page-level Locking** - Lock pages (groups of rows)
-**3. Table-level Locking** - Lock entire table
-
----
-
-### Deadlock
-
-**Definition:** Two or more transactions waiting for each other to release locks.
-
-**Example:**
 ```sql
--- Transaction 1
+-- Transaction 1                    -- Transaction 2
 BEGIN;
-UPDATE accounts SET balance = 900 WHERE id = 1;  -- Locks row 1
+UPDATE accounts SET balance = 900
+WHERE id = 1;  -- Locks row 1
+                                    BEGIN;
+                                    UPDATE accounts SET balance = 1100
+                                    WHERE id = 2;  -- Locks row 2
 
--- Transaction 2
-BEGIN;
-UPDATE accounts SET balance = 1100 WHERE id = 2;  -- Locks row 2
+UPDATE accounts SET balance = 1100
+WHERE id = 2;  -- Waits for row 2
+                                    UPDATE accounts SET balance = 900
+                                    WHERE id = 1;  -- Waits for row 1
 
--- Transaction 1
-UPDATE accounts SET balance = 1100 WHERE id = 2;  -- Waits for row 2
-
--- Transaction 2
-UPDATE accounts SET balance = 900 WHERE id = 1;  -- Waits for row 1
-
--- DEADLOCK! Both waiting for each other
+-- DEADLOCK! Both waiting forever
 ```
 
-**Deadlock Prevention:**
-- Acquire locks in same order
-- Use timeout
-- Deadlock detection and rollback
+**Prevention:**
+- Acquire locks in consistent order
+- Use lock timeouts
+- Keep transactions short
 
 ---
 
-## Query Optimization
+### Advanced SQL Techniques
 
-### EXPLAIN Command
+#### Window Functions
+
+Perform calculations across rows **without grouping**.
 
 ```sql
-EXPLAIN SELECT * FROM users WHERE age > 25;
+-- ROW_NUMBER: Unique sequential number
+SELECT
+    name, salary,
+    ROW_NUMBER() OVER (ORDER BY salary DESC) as row_num
+FROM employees;
+-- Alice  80000  1
+-- Bob    70000  2
+-- Carol  70000  3  (different from Bob)
 
--- Shows:
--- - Execution plan
--- - Index usage
--- - Estimated rows
--- - Join type
+-- RANK: Same rank for ties, skips numbers
+SELECT
+    name, salary,
+    RANK() OVER (ORDER BY salary DESC) as rank
+FROM employees;
+-- Alice  80000  1
+-- Bob    70000  2
+-- Carol  70000  2  (same as Bob)
+-- Dave   60000  4  (skips 3!)
+
+-- DENSE_RANK: Same rank for ties, no skips
+SELECT
+    name, salary,
+    DENSE_RANK() OVER (ORDER BY salary DESC) as dense_rank
+FROM employees;
+-- Alice  80000  1
+-- Bob    70000  2
+-- Carol  70000  2
+-- Dave   60000  3  (no skip)
 ```
 
----
+**PARTITION BY:**
 
-### Optimization Techniques
-
-**1. Use Indexes**
 ```sql
--- Without index - Slow
-SELECT * FROM users WHERE email = 'user@example.com';
+-- Rank within each department
+SELECT
+    department, name, salary,
+    RANK() OVER (PARTITION BY department ORDER BY salary DESC) as dept_rank
+FROM employees;
 
--- With index - Fast
-CREATE INDEX idx_email ON users(email);
-SELECT * FROM users WHERE email = 'user@example.com';
-```
-
-**2. Avoid SELECT \***
-```sql
--- Bad
-SELECT * FROM users;
-
--- Good - Select only needed columns
-SELECT id, name, email FROM users;
-```
-
-**3. Use LIMIT**
-```sql
--- Get only needed rows
-SELECT * FROM users LIMIT 10;
-```
-
-**4. Use EXISTS instead of IN**
-```sql
--- Slower
-SELECT * FROM users WHERE id IN (SELECT user_id FROM orders);
-
--- Faster
-SELECT * FROM users u WHERE EXISTS (SELECT 1 FROM orders o WHERE o.user_id = u.id);
-```
-
-**5. Avoid Functions in WHERE**
-```sql
--- Bad - Index not used
-SELECT * FROM users WHERE YEAR(created_at) = 2024;
-
--- Good - Index can be used
-SELECT * FROM users WHERE created_at >= '2024-01-01' AND created_at < '2025-01-01';
-```
-
-**6. Use JOIN instead of Subquery**
-```sql
--- Slower
-SELECT * FROM users WHERE id IN (SELECT user_id FROM orders);
-
--- Faster
-SELECT DISTINCT u.* FROM users u JOIN orders o ON u.id = o.user_id;
+-- IT    | Alice  | 80000 | 1
+-- IT    | Bob    | 70000 | 2
+-- HR    | Carol  | 75000 | 1
+-- HR    | Dave   | 65000 | 2
 ```
 
 ---
 
-## Views
+#### Common Table Expressions (CTE)
 
-### What is a View?
-
-**Definition:** Virtual table based on result of a SELECT query. Doesn't store data, only stores query.
-
-**Creating View:**
 ```sql
-CREATE VIEW active_users AS
-SELECT id, name, email
-FROM users
-WHERE status = 'active';
-
--- Using view
-SELECT * FROM active_users;
-```
-
-**Benefits:**
-- Simplify complex queries
-- Security (hide columns)
-- Data abstraction
-- Reusability
-
-**Updating View:**
-```sql
-CREATE OR REPLACE VIEW active_users AS
-SELECT id, name, email, phone
-FROM users
-WHERE status = 'active';
-```
-
-**Dropping View:**
-```sql
-DROP VIEW active_users;
-```
-
----
-
-## Stored Procedures
-
-### What is a Stored Procedure?
-
-**Definition:** Precompiled SQL code stored in database that can be executed repeatedly.
-
-**Creating Stored Procedure:**
-```sql
-DELIMITER //
-
-CREATE PROCEDURE GetUserOrders(IN userId INT)
-BEGIN
-    SELECT o.order_id, o.order_date, o.total
-    FROM orders o
-    WHERE o.user_id = userId
-    ORDER BY o.order_date DESC;
-END //
-
-DELIMITER ;
-
--- Execute procedure
-CALL GetUserOrders(123);
-```
-
-**With Parameters:**
-```sql
-DELIMITER //
-
-CREATE PROCEDURE CreateUser(
-    IN userName VARCHAR(100),
-    IN userEmail VARCHAR(100),
-    OUT userId INT
+-- Simple CTE
+WITH high_earners AS (
+    SELECT * FROM employees WHERE salary > 100000
 )
+SELECT * FROM high_earners WHERE department = 'IT';
+
+-- Multiple CTEs
+WITH
+dept_avg AS (
+    SELECT department, AVG(salary) as avg_salary
+    FROM employees
+    GROUP BY department
+),
+high_paying_depts AS (
+    SELECT department FROM dept_avg WHERE avg_salary > 70000
+)
+SELECT e.* FROM employees e
+JOIN high_paying_depts h ON e.department = h.department;
+```
+
+**Recursive CTE:**
+
+```sql
+-- Employee hierarchy (manager-employee tree)
+WITH RECURSIVE emp_hierarchy AS (
+    -- Base case: top-level managers
+    SELECT id, name, manager_id, 1 as level
+    FROM employees
+    WHERE manager_id IS NULL
+
+    UNION ALL
+
+    -- Recursive case: employees under managers
+    SELECT e.id, e.name, e.manager_id, h.level + 1
+    FROM employees e
+    JOIN emp_hierarchy h ON e.manager_id = h.id
+)
+SELECT * FROM emp_hierarchy ORDER BY level, name;
+```
+
+---
+
+## 10. Views, Procedures, Functions & Triggers
+
+### Views
+
+A view is a **virtual table** based on the result of a SELECT query. It doesn't store data itself.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         VIEWS                                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Benefits:                                                      │
+│  ✅ Simplify complex queries                                    │
+│  ✅ Security (hide sensitive columns)                           │
+│  ✅ Data abstraction (change underlying tables)                 │
+│  ✅ Consistent data access                                      │
+│                                                                 │
+│  Limitations:                                                   │
+│  ❌ Performance (complex views can be slow)                     │
+│  ❌ Update restrictions (some views are read-only)              │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Basic View Operations
+
+```sql
+-- Create view
+CREATE VIEW active_customers AS
+SELECT id, name, email, phone
+FROM customers
+WHERE status = 'active';
+
+-- Use view like a table
+SELECT * FROM active_customers WHERE name LIKE 'John%';
+
+-- Update existing view
+CREATE OR REPLACE VIEW active_customers AS
+SELECT id, name, email, phone, created_at
+FROM customers
+WHERE status = 'active';
+
+-- Alter view (SQL Server)
+ALTER VIEW active_customers AS
+SELECT id, name, email FROM customers WHERE status = 'active';
+
+-- Drop view
+DROP VIEW active_customers;
+DROP VIEW IF EXISTS active_customers;
+
+-- View definition
+SHOW CREATE VIEW active_customers;  -- MySQL
+```
+
+#### View with JOIN
+
+```sql
+CREATE VIEW order_details AS
+SELECT
+    o.id AS order_id,
+    o.order_date,
+    c.name AS customer_name,
+    c.email,
+    p.name AS product_name,
+    oi.quantity,
+    oi.price,
+    (oi.quantity * oi.price) AS total
+FROM orders o
+JOIN customers c ON o.customer_id = c.id
+JOIN order_items oi ON o.id = oi.order_id
+JOIN products p ON oi.product_id = p.id;
+
+-- Now use simple query
+SELECT * FROM order_details WHERE customer_name = 'John';
+```
+
+#### Updatable Views
+
+```sql
+-- Simple views are updatable
+CREATE VIEW california_customers AS
+SELECT id, name, email, state
+FROM customers
+WHERE state = 'CA';
+
+-- INSERT through view
+INSERT INTO california_customers (name, email, state)
+VALUES ('Jane', 'jane@email.com', 'CA');
+
+-- UPDATE through view
+UPDATE california_customers SET email = 'new@email.com' WHERE id = 1;
+
+-- DELETE through view
+DELETE FROM california_customers WHERE id = 1;
+
+-- WITH CHECK OPTION (prevent inserting rows that don't match view)
+CREATE VIEW california_customers AS
+SELECT id, name, email, state
+FROM customers
+WHERE state = 'CA'
+WITH CHECK OPTION;
+
+-- This will FAIL (state is not 'CA')
+INSERT INTO california_customers (name, email, state)
+VALUES ('Jane', 'jane@email.com', 'NY');  -- Error!
+```
+
+#### Materialized Views
+
+Materialized views **store the result** physically (not in all databases).
+
+```sql
+-- PostgreSQL
+CREATE MATERIALIZED VIEW sales_summary AS
+SELECT
+    product_id,
+    SUM(quantity) as total_qty,
+    SUM(amount) as total_amount
+FROM sales
+GROUP BY product_id;
+
+-- Refresh materialized view
+REFRESH MATERIALIZED VIEW sales_summary;
+
+-- Oracle
+CREATE MATERIALIZED VIEW sales_summary
+REFRESH FAST ON COMMIT
+AS SELECT product_id, SUM(amount) FROM sales GROUP BY product_id;
+```
+
+| Regular View | Materialized View |
+|--------------|-------------------|
+| Virtual (no storage) | Physical storage |
+| Always up-to-date | Needs refresh |
+| Slower for complex queries | Faster reads |
+| No maintenance | Needs maintenance |
+
+---
+
+### Stored Procedures
+
+A stored procedure is a **precompiled set of SQL statements** stored in the database.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    STORED PROCEDURES                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Benefits:                                                      │
+│  ✅ Precompiled (faster execution)                              │
+│  ✅ Reduced network traffic                                     │
+│  ✅ Reusability                                                 │
+│  ✅ Security (grant execute, not table access)                  │
+│  ✅ Maintainability (change in one place)                       │
+│                                                                 │
+│  Limitations:                                                   │
+│  ❌ Database-specific syntax                                    │
+│  ❌ Harder to debug                                             │
+│  ❌ Version control challenges                                  │
+│  ❌ Can become complex                                          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Basic Stored Procedure
+
+```sql
+-- MySQL
+DELIMITER //
+
+CREATE PROCEDURE GetAllCustomers()
 BEGIN
-    INSERT INTO users (name, email) VALUES (userName, userEmail);
-    SET userId = LAST_INSERT_ID();
+    SELECT * FROM customers;
 END //
 
 DELIMITER ;
 
 -- Execute
-CALL CreateUser('John Doe', 'john@example.com', @newUserId);
-SELECT @newUserId;
+CALL GetAllCustomers();
 ```
 
-**Benefits:**
-- Precompiled (faster)
-- Reduce network traffic
-- Reusability
-- Security
-- Maintainability
+#### Procedure with IN Parameters
+
+```sql
+DELIMITER //
+
+CREATE PROCEDURE GetCustomerOrders(IN customerId INT)
+BEGIN
+    SELECT o.id, o.order_date, o.total
+    FROM orders o
+    WHERE o.customer_id = customerId
+    ORDER BY o.order_date DESC;
+END //
+
+DELIMITER ;
+
+-- Execute
+CALL GetCustomerOrders(123);
+```
+
+#### Procedure with OUT Parameters
+
+```sql
+DELIMITER //
+
+CREATE PROCEDURE GetOrderCount(
+    IN customerId INT,
+    OUT orderCount INT
+)
+BEGIN
+    SELECT COUNT(*) INTO orderCount
+    FROM orders
+    WHERE customer_id = customerId;
+END //
+
+DELIMITER ;
+
+-- Execute
+CALL GetOrderCount(123, @count);
+SELECT @count;  -- Output: 5
+```
+
+#### Procedure with INOUT Parameters
+
+```sql
+DELIMITER //
+
+CREATE PROCEDURE DoubleValue(INOUT value INT)
+BEGIN
+    SET value = value * 2;
+END //
+
+DELIMITER ;
+
+-- Execute
+SET @num = 5;
+CALL DoubleValue(@num);
+SELECT @num;  -- Output: 10
+```
+
+#### Procedure with Logic
+
+```sql
+DELIMITER //
+
+CREATE PROCEDURE ProcessOrder(
+    IN orderId INT,
+    OUT status VARCHAR(50)
+)
+BEGIN
+    DECLARE orderTotal DECIMAL(10,2);
+    DECLARE customerCredit DECIMAL(10,2);
+
+    -- Get order total
+    SELECT total INTO orderTotal FROM orders WHERE id = orderId;
+
+    -- Get customer credit
+    SELECT credit_limit INTO customerCredit
+    FROM customers c
+    JOIN orders o ON c.id = o.customer_id
+    WHERE o.id = orderId;
+
+    -- Check credit
+    IF orderTotal <= customerCredit THEN
+        UPDATE orders SET status = 'approved' WHERE id = orderId;
+        SET status = 'Order approved';
+    ELSE
+        UPDATE orders SET status = 'pending' WHERE id = orderId;
+        SET status = 'Insufficient credit';
+    END IF;
+END //
+
+DELIMITER ;
+```
+
+#### Procedure with Error Handling
+
+```sql
+DELIMITER //
+
+CREATE PROCEDURE TransferMoney(
+    IN fromAccount INT,
+    IN toAccount INT,
+    IN amount DECIMAL(10,2),
+    OUT result VARCHAR(100)
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SET result = 'Error: Transaction failed';
+    END;
+
+    START TRANSACTION;
+
+    UPDATE accounts SET balance = balance - amount WHERE id = fromAccount;
+    UPDATE accounts SET balance = balance + amount WHERE id = toAccount;
+
+    COMMIT;
+    SET result = 'Success: Transfer completed';
+END //
+
+DELIMITER ;
+```
 
 ---
 
-## Triggers
+### User-Defined Functions (UDF)
 
-### What is a Trigger?
+Functions **return a value** and can be used in SQL expressions.
 
-**Definition:** Stored procedure that automatically executes when specific database event occurs.
+| Stored Procedure | Function |
+|------------------|----------|
+| May or may not return value | Must return a value |
+| Called with CALL | Called in SELECT/WHERE |
+| Can modify data | Should not modify data |
+| Cannot use in SELECT | Can use in SELECT |
 
-**Types:**
-- **BEFORE INSERT** - Before inserting row
-- **AFTER INSERT** - After inserting row
-- **BEFORE UPDATE** - Before updating row
-- **AFTER UPDATE** - After updating row
-- **BEFORE DELETE** - Before deleting row
-- **AFTER DELETE** - After deleting row
+#### Scalar Function (returns single value)
 
-**Example:**
 ```sql
--- Auto-update timestamp
-CREATE TRIGGER update_timestamp
-BEFORE UPDATE ON users
-FOR EACH ROW
-SET NEW.updated_at = NOW();
+-- MySQL
+DELIMITER //
 
--- Audit log
-CREATE TRIGGER user_delete_audit
-AFTER DELETE ON users
-FOR EACH ROW
-INSERT INTO audit_log (action, user_id, timestamp)
-VALUES ('DELETE', OLD.id, NOW());
+CREATE FUNCTION CalculateAge(birthDate DATE)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    RETURN TIMESTAMPDIFF(YEAR, birthDate, CURDATE());
+END //
 
--- Validate data
-CREATE TRIGGER validate_age
-BEFORE INSERT ON users
+DELIMITER ;
+
+-- Use in query
+SELECT name, CalculateAge(birth_date) AS age FROM employees;
+SELECT * FROM employees WHERE CalculateAge(birth_date) >= 21;
+```
+
+#### Function with Logic
+
+```sql
+DELIMITER //
+
+CREATE FUNCTION GetDiscountedPrice(
+    price DECIMAL(10,2),
+    discountPercent INT
+)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE discountedPrice DECIMAL(10,2);
+    SET discountedPrice = price - (price * discountPercent / 100);
+    RETURN discountedPrice;
+END //
+
+DELIMITER ;
+
+-- Use
+SELECT name, price, GetDiscountedPrice(price, 10) AS sale_price FROM products;
+```
+
+#### Table-Valued Function (PostgreSQL, SQL Server)
+
+```sql
+-- PostgreSQL
+CREATE FUNCTION GetEmployeesByDept(deptId INT)
+RETURNS TABLE (id INT, name VARCHAR, salary DECIMAL)
+AS $$
+    SELECT id, name, salary
+    FROM employees
+    WHERE department_id = deptId;
+$$ LANGUAGE SQL;
+
+-- Use
+SELECT * FROM GetEmployeesByDept(10);
+```
+
+---
+
+### Triggers
+
+A trigger is a **stored procedure that automatically executes** when a specific event occurs.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      TRIGGER TYPES                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Timing:                                                        │
+│  ─────────                                                      │
+│  BEFORE - Execute before the operation                          │
+│  AFTER  - Execute after the operation                           │
+│  INSTEAD OF - Replace the operation (views only)                │
+│                                                                 │
+│  Events:                                                        │
+│  ────────                                                       │
+│  INSERT - When new row is inserted                              │
+│  UPDATE - When row is modified                                  │
+│  DELETE - When row is removed                                   │
+│                                                                 │
+│  Special Variables:                                             │
+│  ──────────────────                                             │
+│  NEW - New row data (INSERT, UPDATE)                            │
+│  OLD - Old row data (UPDATE, DELETE)                            │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### BEFORE INSERT Trigger
+
+```sql
+-- Auto-set created_at
+DELIMITER //
+
+CREATE TRIGGER before_employee_insert
+BEFORE INSERT ON employees
 FOR EACH ROW
 BEGIN
-    IF NEW.age < 0 OR NEW.age > 150 THEN
+    SET NEW.created_at = NOW();
+    SET NEW.updated_at = NOW();
+END //
+
+DELIMITER ;
+```
+
+#### BEFORE UPDATE Trigger
+
+```sql
+-- Auto-update timestamp
+DELIMITER //
+
+CREATE TRIGGER before_employee_update
+BEFORE UPDATE ON employees
+FOR EACH ROW
+BEGIN
+    SET NEW.updated_at = NOW();
+END //
+
+DELIMITER ;
+```
+
+#### AFTER INSERT Trigger (Audit Log)
+
+```sql
+DELIMITER //
+
+CREATE TRIGGER after_employee_insert
+AFTER INSERT ON employees
+FOR EACH ROW
+BEGIN
+    INSERT INTO audit_log (
+        table_name, action, record_id, new_data, created_at
+    ) VALUES (
+        'employees', 'INSERT', NEW.id,
+        JSON_OBJECT('name', NEW.name, 'email', NEW.email),
+        NOW()
+    );
+END //
+
+DELIMITER ;
+```
+
+#### AFTER DELETE Trigger
+
+```sql
+DELIMITER //
+
+CREATE TRIGGER after_employee_delete
+AFTER DELETE ON employees
+FOR EACH ROW
+BEGIN
+    INSERT INTO audit_log (
+        table_name, action, record_id, old_data, created_at
+    ) VALUES (
+        'employees', 'DELETE', OLD.id,
+        JSON_OBJECT('name', OLD.name, 'email', OLD.email),
+        NOW()
+    );
+END //
+
+DELIMITER ;
+```
+
+#### Trigger for Data Validation
+
+```sql
+DELIMITER //
+
+CREATE TRIGGER validate_employee_salary
+BEFORE INSERT ON employees
+FOR EACH ROW
+BEGIN
+    IF NEW.salary < 0 THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Invalid age';
+        SET MESSAGE_TEXT = 'Salary cannot be negative';
     END IF;
-END;
+
+    IF NEW.salary > 1000000 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Salary exceeds maximum limit';
+    END IF;
+END //
+
+DELIMITER ;
+```
+
+#### Trigger for Maintaining Summary Tables
+
+```sql
+DELIMITER //
+
+CREATE TRIGGER after_order_insert
+AFTER INSERT ON orders
+FOR EACH ROW
+BEGIN
+    -- Update customer's total orders and spent amount
+    UPDATE customers
+    SET total_orders = total_orders + 1,
+        total_spent = total_spent + NEW.amount
+    WHERE id = NEW.customer_id;
+END //
+
+CREATE TRIGGER after_order_delete
+AFTER DELETE ON orders
+FOR EACH ROW
+BEGIN
+    UPDATE customers
+    SET total_orders = total_orders - 1,
+        total_spent = total_spent - OLD.amount
+    WHERE id = OLD.customer_id;
+END //
+
+DELIMITER ;
+```
+
+#### Managing Triggers
+
+```sql
+-- Show triggers
+SHOW TRIGGERS;
+SHOW TRIGGERS LIKE 'employees';
+
+-- Drop trigger
+DROP TRIGGER before_employee_insert;
+DROP TRIGGER IF EXISTS before_employee_insert;
+
+-- Disable/Enable (SQL Server)
+DISABLE TRIGGER trigger_name ON table_name;
+ENABLE TRIGGER trigger_name ON table_name;
 ```
 
 ---
 
-## Advanced SQL Examples
+## 11. Cursors & Temporary Tables
 
-### Window Functions
+### Cursors
 
-**ROW_NUMBER()**
-```sql
-SELECT 
-    name,
-    salary,
-    ROW_NUMBER() OVER (ORDER BY salary DESC) as rank
-FROM employees;
+A cursor allows **row-by-row processing** of query results.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         CURSORS                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  When to Use:                                                   │
+│  ✅ Row-by-row processing required                              │
+│  ✅ Complex calculations per row                                │
+│  ✅ Calling procedures for each row                             │
+│                                                                 │
+│  When to Avoid:                                                 │
+│  ❌ Set-based operations possible (use JOIN, UPDATE)            │
+│  ❌ Large datasets (very slow)                                  │
+│  ❌ Simple aggregations                                         │
+│                                                                 │
+│  Cursor Lifecycle:                                              │
+│  DECLARE → OPEN → FETCH → CLOSE → DEALLOCATE                    │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-**RANK() and DENSE_RANK()**
+#### Basic Cursor Example
+
 ```sql
-SELECT 
-    name,
-    salary,
-    RANK() OVER (ORDER BY salary DESC) as rank,
-    DENSE_RANK() OVER (ORDER BY salary DESC) as dense_rank
-FROM employees;
+DELIMITER //
+
+CREATE PROCEDURE ProcessAllOrders()
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE orderId INT;
+    DECLARE orderAmount DECIMAL(10,2);
+
+    -- Declare cursor
+    DECLARE order_cursor CURSOR FOR
+        SELECT id, amount FROM orders WHERE status = 'pending';
+
+    -- Declare handler for end of data
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    -- Open cursor
+    OPEN order_cursor;
+
+    -- Loop through rows
+    read_loop: LOOP
+        FETCH order_cursor INTO orderId, orderAmount;
+
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+
+        -- Process each row
+        IF orderAmount > 1000 THEN
+            UPDATE orders SET priority = 'high' WHERE id = orderId;
+        ELSE
+            UPDATE orders SET priority = 'normal' WHERE id = orderId;
+        END IF;
+    END LOOP;
+
+    -- Close cursor
+    CLOSE order_cursor;
+END //
+
+DELIMITER ;
 ```
 
-**Partition By**
+#### Cursor with Multiple Columns
+
 ```sql
-SELECT 
-    department,
-    name,
-    salary,
-    RANK() OVER (PARTITION BY department ORDER BY salary DESC) as dept_rank
-FROM employees;
+DELIMITER //
+
+CREATE PROCEDURE SendOrderNotifications()
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE v_order_id INT;
+    DECLARE v_customer_email VARCHAR(100);
+    DECLARE v_order_total DECIMAL(10,2);
+
+    DECLARE order_cursor CURSOR FOR
+        SELECT o.id, c.email, o.total
+        FROM orders o
+        JOIN customers c ON o.customer_id = c.id
+        WHERE o.status = 'shipped';
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    OPEN order_cursor;
+
+    fetch_loop: LOOP
+        FETCH order_cursor INTO v_order_id, v_customer_email, v_order_total;
+
+        IF done THEN
+            LEAVE fetch_loop;
+        END IF;
+
+        -- Insert notification record
+        INSERT INTO notifications (email, message, created_at)
+        VALUES (
+            v_customer_email,
+            CONCAT('Order #', v_order_id, ' (Total: $', v_order_total, ') has been shipped!'),
+            NOW()
+        );
+    END LOOP;
+
+    CLOSE order_cursor;
+END //
+
+DELIMITER ;
 ```
 
 ---
 
-### Common Table Expressions (CTE)
+### Temporary Tables
 
-**Simple CTE:**
-```sql
-WITH high_earners AS (
-    SELECT * FROM employees WHERE salary > 100000
-)
-SELECT * FROM high_earners WHERE department = 'IT';
+Temporary tables exist only for the **duration of a session** or transaction.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    TEMPORARY TABLES                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Types:                                                         │
+│  ─────────                                                      │
+│  Local Temp Table   - Visible only to current session           │
+│  Global Temp Table  - Visible to all sessions (SQL Server)      │
+│                                                                 │
+│  Benefits:                                                      │
+│  ✅ Store intermediate results                                  │
+│  ✅ Simplify complex queries                                    │
+│  ✅ Auto-deleted when session ends                              │
+│  ✅ Can have indexes                                            │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-**Recursive CTE:**
-```sql
--- Generate numbers 1 to 10
-WITH RECURSIVE numbers AS (
-    SELECT 1 as n
-    UNION ALL
-    SELECT n + 1 FROM numbers WHERE n < 10
-)
-SELECT * FROM numbers;
+#### Creating Temporary Tables
 
--- Employee hierarchy
-WITH RECURSIVE employee_hierarchy AS (
-    SELECT id, name, manager_id, 1 as level
+```sql
+-- MySQL: CREATE TEMPORARY TABLE
+CREATE TEMPORARY TABLE temp_high_value_orders (
+    order_id INT,
+    customer_name VARCHAR(100),
+    total DECIMAL(10,2)
+);
+
+INSERT INTO temp_high_value_orders
+SELECT o.id, c.name, o.total
+FROM orders o
+JOIN customers c ON o.customer_id = c.id
+WHERE o.total > 1000;
+
+-- Use the temp table
+SELECT * FROM temp_high_value_orders;
+
+-- Auto-dropped when session ends, or manually:
+DROP TEMPORARY TABLE temp_high_value_orders;
+```
+
+#### Create Temp Table from Query
+
+```sql
+-- MySQL
+CREATE TEMPORARY TABLE temp_summary AS
+SELECT department, AVG(salary) as avg_salary, COUNT(*) as emp_count
+FROM employees
+GROUP BY department;
+
+-- SQL Server (SELECT INTO)
+SELECT department, AVG(salary) as avg_salary, COUNT(*) as emp_count
+INTO #temp_summary
+FROM employees
+GROUP BY department;
+
+-- PostgreSQL
+CREATE TEMP TABLE temp_summary AS
+SELECT department, AVG(salary) as avg_salary
+FROM employees
+GROUP BY department;
+```
+
+#### SQL Server Temp Table Types
+
+```sql
+-- Local temp table (visible only to current session)
+CREATE TABLE #local_temp (
+    id INT,
+    name VARCHAR(100)
+);
+
+-- Global temp table (visible to all sessions)
+CREATE TABLE ##global_temp (
+    id INT,
+    name VARCHAR(100)
+);
+
+-- Table variable (lives in memory)
+DECLARE @temp_table TABLE (
+    id INT,
+    name VARCHAR(100)
+);
+
+INSERT INTO @temp_table VALUES (1, 'John');
+SELECT * FROM @temp_table;
+```
+
+#### Using Temp Tables for Complex Queries
+
+```sql
+-- Step 1: Get top customers
+CREATE TEMPORARY TABLE temp_top_customers AS
+SELECT customer_id, SUM(total) as total_spent
+FROM orders
+WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+GROUP BY customer_id
+HAVING SUM(total) > 10000;
+
+-- Step 2: Get their recent orders
+CREATE TEMPORARY TABLE temp_recent_orders AS
+SELECT o.*
+FROM orders o
+JOIN temp_top_customers tc ON o.customer_id = tc.customer_id
+WHERE o.order_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY);
+
+-- Step 3: Final analysis
+SELECT
+    c.name,
+    tc.total_spent,
+    COUNT(ro.id) as recent_orders
+FROM temp_top_customers tc
+JOIN customers c ON tc.customer_id = c.id
+LEFT JOIN temp_recent_orders ro ON tc.customer_id = ro.customer_id
+GROUP BY c.name, tc.total_spent;
+
+-- Cleanup
+DROP TEMPORARY TABLE temp_top_customers;
+DROP TEMPORARY TABLE temp_recent_orders;
+```
+
+---
+
+## 12. Partitioning
+
+Partitioning divides a large table into smaller, manageable pieces.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      PARTITIONING                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Horizontal Partitioning (Row-based):                           │
+│  ────────────────────────────────────                           │
+│  Split rows across partitions                                   │
+│  Example: Orders by year                                        │
+│                                                                 │
+│  Vertical Partitioning (Column-based):                          │
+│  ─────────────────────────────────────                          │
+│  Split columns across tables                                    │
+│  Example: Separate BLOB data                                    │
+│                                                                 │
+│  Benefits:                                                      │
+│  ✅ Faster queries (partition pruning)                          │
+│  ✅ Easier maintenance (drop old partitions)                    │
+│  ✅ Parallel processing                                         │
+│  ✅ Improved availability                                       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Range Partitioning
+
+```sql
+-- Partition by date range
+CREATE TABLE orders (
+    id INT,
+    customer_id INT,
+    order_date DATE,
+    amount DECIMAL(10,2)
+)
+PARTITION BY RANGE (YEAR(order_date)) (
+    PARTITION p2021 VALUES LESS THAN (2022),
+    PARTITION p2022 VALUES LESS THAN (2023),
+    PARTITION p2023 VALUES LESS THAN (2024),
+    PARTITION p2024 VALUES LESS THAN (2025),
+    PARTITION p_future VALUES LESS THAN MAXVALUE
+);
+
+-- Query only scans relevant partition
+SELECT * FROM orders WHERE order_date = '2024-01-15';
+```
+
+### List Partitioning
+
+```sql
+-- Partition by discrete values
+CREATE TABLE customers (
+    id INT,
+    name VARCHAR(100),
+    region VARCHAR(50)
+)
+PARTITION BY LIST (region) (
+    PARTITION p_east VALUES IN ('NY', 'NJ', 'PA', 'CT'),
+    PARTITION p_west VALUES IN ('CA', 'WA', 'OR', 'NV'),
+    PARTITION p_central VALUES IN ('TX', 'IL', 'OH', 'MI'),
+    PARTITION p_other VALUES IN (DEFAULT)
+);
+```
+
+### Hash Partitioning
+
+```sql
+-- Evenly distribute data
+CREATE TABLE users (
+    id INT,
+    name VARCHAR(100),
+    email VARCHAR(100)
+)
+PARTITION BY HASH(id)
+PARTITIONS 4;
+
+-- Data distributed across 4 partitions based on id % 4
+```
+
+### Key Partitioning (MySQL)
+
+```sql
+-- Similar to hash but uses MySQL's internal hash
+CREATE TABLE sessions (
+    id INT,
+    user_id INT,
+    data TEXT,
+    PRIMARY KEY (id, user_id)
+)
+PARTITION BY KEY(user_id)
+PARTITIONS 8;
+```
+
+### Managing Partitions
+
+```sql
+-- Add partition
+ALTER TABLE orders ADD PARTITION (
+    PARTITION p2025 VALUES LESS THAN (2026)
+);
+
+-- Drop partition (deletes data!)
+ALTER TABLE orders DROP PARTITION p2021;
+
+-- Truncate partition (keep structure)
+ALTER TABLE orders TRUNCATE PARTITION p2021;
+
+-- Reorganize partitions
+ALTER TABLE orders REORGANIZE PARTITION p_future INTO (
+    PARTITION p2025 VALUES LESS THAN (2026),
+    PARTITION p_future VALUES LESS THAN MAXVALUE
+);
+
+-- Show partitions
+SELECT PARTITION_NAME, TABLE_ROWS
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_NAME = 'orders';
+```
+
+### Vertical Partitioning Example
+
+```sql
+-- Original table with large BLOB
+CREATE TABLE products (
+    id INT PRIMARY KEY,
+    name VARCHAR(100),
+    description TEXT,
+    price DECIMAL(10,2),
+    image LONGBLOB,        -- Large data
+    manual PDF LONGBLOB    -- Large data
+);
+
+-- Split into two tables (vertical partitioning)
+CREATE TABLE products (
+    id INT PRIMARY KEY,
+    name VARCHAR(100),
+    description TEXT,
+    price DECIMAL(10,2)
+);
+
+CREATE TABLE product_files (
+    product_id INT PRIMARY KEY,
+    image LONGBLOB,
+    manual_pdf LONGBLOB,
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+-- Join when needed
+SELECT p.*, pf.image
+FROM products p
+LEFT JOIN product_files pf ON p.id = pf.product_id
+WHERE p.id = 123;
+```
+
+---
+
+## 13. Scaling Databases
+
+### Vertical vs Horizontal Scaling
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     SCALING STRATEGIES                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  VERTICAL SCALING (Scale Up)      HORIZONTAL SCALING (Scale Out)│
+│  ──────────────────────────       ──────────────────────────────│
+│                                                                 │
+│  ┌─────────────────┐              ┌─────┐ ┌─────┐ ┌─────┐       │
+│  │                 │              │ DB  │ │ DB  │ │ DB  │       │
+│  │    BIGGER       │              │  1  │ │  2  │ │  3  │       │
+│  │    SERVER       │              └─────┘ └─────┘ └─────┘       │
+│  │                 │                                            │
+│  └─────────────────┘              More servers                  │
+│  More CPU/RAM/Disk                                              │
+│                                                                 │
+│  ✅ Simple                        ✅ Unlimited scaling          │
+│  ✅ No code changes               ✅ Fault tolerant             │
+│  ❌ Hardware limits               ❌ Complex                    │
+│  ❌ Single point of failure       ❌ Data distribution issues   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Replication
+
+Copy data from master to replicas.
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    MASTER-SLAVE REPLICATION                    │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│                    ┌──────────┐                                │
+│      Writes ──────►│  MASTER  │                                │
+│                    └────┬─────┘                                │
+│                         │ Replication                          │
+│              ┌──────────┼──────────┐                           │
+│              │          │          │                           │
+│              ▼          ▼          ▼                           │
+│         ┌────────┐ ┌────────┐ ┌────────┐                       │
+│  Reads ─│ SLAVE  │ │ SLAVE  │ │ SLAVE  │                       │
+│         │   1    │ │   2    │ │   3    │                       │
+│         └────────┘ └────────┘ └────────┘                       │
+│                                                                │
+│  Benefits:                                                     │
+│  • Read scalability (distribute reads)                         │
+│  • High availability (failover to slave)                       │
+│  • Backup without affecting master                             │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**Replication Types:**
+- **Synchronous:** Wait for replica confirmation (consistent, slower)
+- **Asynchronous:** Don't wait (faster, eventual consistency)
+- **Semi-synchronous:** Wait for at least one replica
+
+---
+
+### Sharding (Horizontal Partitioning)
+
+Distribute data across multiple databases.
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                         SHARDING                               │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  Without Sharding:                                             │
+│  ┌─────────────────────────────────────┐                       │
+│  │         Single Database              │                      │
+│  │         10 Million Users             │                      │
+│  └─────────────────────────────────────┘                       │
+│                                                                │
+│  With Sharding (by user_id % 4):                               │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐   │
+│  │  Shard 0   │ │  Shard 1   │ │  Shard 2   │ │  Shard 3   │   │
+│  │ ID % 4 = 0 │ │ ID % 4 = 1 │ │ ID % 4 = 2 │ │ ID % 4 = 3 │   │
+│  │ 2.5M users │ │ 2.5M users │ │ 2.5M users │ │ 2.5M users │   │
+│  └────────────┘ └────────────┘ └────────────┘ └────────────┘   │
+│                                                                │
+│  Sharding Strategies:                                          │
+│  • Range-based: user_id 1-1M, 1M-2M, etc.                      │
+│  • Hash-based: user_id % num_shards                            │
+│  • Geographic: by region/country                               │
+│  • Directory-based: lookup table                               │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Connection Pooling
+
+Reuse database connections.
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    CONNECTION POOLING                          │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  Without Pool:                                                 │
+│  ┌─────────┐     Create (50ms)      ┌──────────┐               │
+│  │ Request │ ──────────────────────► │ Database │              │
+│  └─────────┘     Close              └──────────┘               │
+│                  (Repeat for every request!)                   │
+│                                                                │
+│  With Pool:                                                    │
+│  ┌─────────┐                        ┌──────────┐               │
+│  │ Request │ ──┐   ┌────────────┐   │          │               │
+│  └─────────┘   │   │            │   │          │               │
+│  ┌─────────┐   ├──►│ Connection │◄──│ Database │               │
+│  │ Request │ ──┤   │    Pool    │   │          │               │
+│  └─────────┘   │   │  (10 conn) │   │          │               │
+│  ┌─────────┐   │   │            │   │          │               │
+│  │ Request │ ──┘   └────────────┘   └──────────┘               │
+│  └─────────┘                                                   │
+│                                                                │
+│  Get from pool: 1ms (vs 50ms create!)                          │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**Popular Pools:** HikariCP, C3P0, Apache DBCP
+
+---
+
+### CAP Theorem
+
+Distributed systems can only guarantee 2 of 3:
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                       CAP THEOREM                              │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│                      Consistency                               │
+│                          /\                                    │
+│                         /  \                                   │
+│                        /    \                                  │
+│                       / CA   \                                 │
+│                      /        \                                │
+│                     /   CP     \                               │
+│                    /____________\                              │
+│         Availability ─────────── Partition                     │
+│                          AP       Tolerance                    │
+│                                                                │
+│  C = All nodes see same data at same time                      │
+│  A = Every request gets a response                             │
+│  P = System works despite network failures                     │
+│                                                                │
+│  Choose 2:                                                     │
+│  • CA: Traditional RDBMS (single server)                       │
+│  • CP: MongoDB, HBase, Redis (sacrifice availability)          │
+│  • AP: Cassandra, DynamoDB (sacrifice consistency)             │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 14. Database Security
+
+### Authentication & Authorization
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    DATABASE SECURITY                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Authentication: Who are you?                                   │
+│  ─────────────────────────────                                  │
+│  • Username/Password                                            │
+│  • LDAP/Active Directory                                        │
+│  • SSL Certificates                                             │
+│  • Two-factor authentication                                    │
+│                                                                 │
+│  Authorization: What can you do?                                │
+│  ───────────────────────────────                                │
+│  • GRANT/REVOKE permissions                                     │
+│  • Role-based access control                                    │
+│  • Row-level security                                           │
+│  • Column-level security                                        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### User Management
+
+```sql
+-- Create user
+CREATE USER 'app_user'@'localhost' IDENTIFIED BY 'secure_password';
+CREATE USER 'app_user'@'%' IDENTIFIED BY 'secure_password';  -- Any host
+
+-- Change password
+ALTER USER 'app_user'@'localhost' IDENTIFIED BY 'new_password';
+
+-- Drop user
+DROP USER 'app_user'@'localhost';
+
+-- Show users
+SELECT User, Host FROM mysql.user;
+```
+
+### Privileges & Permissions
+
+```sql
+-- Grant privileges
+GRANT SELECT ON database_name.* TO 'app_user'@'localhost';
+GRANT SELECT, INSERT, UPDATE ON database_name.table_name TO 'app_user'@'localhost';
+GRANT ALL PRIVILEGES ON database_name.* TO 'admin_user'@'localhost';
+
+-- Grant with grant option (user can grant to others)
+GRANT SELECT ON database_name.* TO 'app_user'@'localhost' WITH GRANT OPTION;
+
+-- Revoke privileges
+REVOKE INSERT ON database_name.* FROM 'app_user'@'localhost';
+REVOKE ALL PRIVILEGES ON database_name.* FROM 'app_user'@'localhost';
+
+-- Show privileges
+SHOW GRANTS FOR 'app_user'@'localhost';
+
+-- Apply changes
+FLUSH PRIVILEGES;
+```
+
+### Role-Based Access Control
+
+```sql
+-- Create roles
+CREATE ROLE 'read_only';
+CREATE ROLE 'read_write';
+CREATE ROLE 'admin';
+
+-- Grant privileges to roles
+GRANT SELECT ON database_name.* TO 'read_only';
+GRANT SELECT, INSERT, UPDATE, DELETE ON database_name.* TO 'read_write';
+GRANT ALL PRIVILEGES ON database_name.* TO 'admin';
+
+-- Assign roles to users
+GRANT 'read_only' TO 'reporting_user'@'localhost';
+GRANT 'read_write' TO 'app_user'@'localhost';
+GRANT 'admin' TO 'dba_user'@'localhost';
+
+-- Activate role
+SET DEFAULT ROLE 'read_only' TO 'reporting_user'@'localhost';
+```
+
+### SQL Injection Prevention
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SQL INJECTION                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  What is it?                                                    │
+│  ───────────                                                    │
+│  Attacker injects malicious SQL through user input              │
+│                                                                 │
+│  Example Attack:                                                │
+│  ─────────────────                                              │
+│  Input: ' OR '1'='1                                             │
+│  Query: SELECT * FROM users WHERE name = '' OR '1'='1'          │
+│  Result: Returns ALL users!                                     │
+│                                                                 │
+│  Prevention:                                                    │
+│  ───────────                                                    │
+│  ✅ Use Prepared Statements / Parameterized Queries             │
+│  ✅ Use ORM frameworks                                          │
+│  ✅ Input validation and sanitization                           │
+│  ✅ Least privilege principle                                   │
+│  ✅ Web Application Firewall (WAF)                              │
+│  ❌ Never concatenate user input into SQL                       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Vulnerable Code (DON'T DO THIS)
+
+```java
+// VULNERABLE - SQL Injection possible!
+String query = "SELECT * FROM users WHERE username = '" + username + "'";
+Statement stmt = connection.createStatement();
+ResultSet rs = stmt.executeQuery(query);
+```
+
+#### Safe Code (Prepared Statements)
+
+```java
+// SAFE - Parameterized query
+String query = "SELECT * FROM users WHERE username = ?";
+PreparedStatement pstmt = connection.prepareStatement(query);
+pstmt.setString(1, username);
+ResultSet rs = pstmt.executeQuery();
+```
+
+```python
+# Python - Safe
+cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+
+# Python with SQLAlchemy ORM - Safe
+user = session.query(User).filter(User.username == username).first()
+```
+
+### Data Encryption
+
+```sql
+-- Encryption at rest (Transparent Data Encryption)
+-- MySQL
+ALTER TABLE sensitive_data ENCRYPTION = 'Y';
+
+-- Column-level encryption
+-- Store encrypted data
+INSERT INTO users (name, ssn_encrypted)
+VALUES ('John', AES_ENCRYPT('123-45-6789', 'encryption_key'));
+
+-- Decrypt when reading
+SELECT name, AES_DECRYPT(ssn_encrypted, 'encryption_key') AS ssn
+FROM users;
+
+-- Hashing passwords (one-way)
+INSERT INTO users (username, password_hash)
+VALUES ('john', SHA2('password123', 256));
+
+-- Verify password
+SELECT * FROM users
+WHERE username = 'john' AND password_hash = SHA2('password123', 256);
+```
+
+---
+
+## 15. Backup & Recovery
+
+### Backup Types
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      BACKUP TYPES                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Full Backup:                                                   │
+│  ────────────                                                   │
+│  • Complete copy of entire database                             │
+│  • Largest size, longest time                                   │
+│  • Simplest to restore                                          │
+│                                                                 │
+│  Incremental Backup:                                            │
+│  ───────────────────                                            │
+│  • Only changes since LAST backup (full or incremental)         │
+│  • Smallest size, fastest backup                                │
+│  • Requires all incrementals + full to restore                  │
+│                                                                 │
+│  Differential Backup:                                           │
+│  ────────────────────                                           │
+│  • Only changes since LAST FULL backup                          │
+│  • Medium size                                                  │
+│  • Requires last full + last differential to restore            │
+│                                                                 │
+│  Example Timeline:                                              │
+│  ─────────────────                                              │
+│  Sun: Full (100GB)                                              │
+│  Mon: Incremental (5GB) or Differential (5GB)                   │
+│  Tue: Incremental (3GB) or Differential (8GB)                   │
+│  Wed: Incremental (4GB) or Differential (12GB)                  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### MySQL Backup
+
+```bash
+# Full backup with mysqldump
+mysqldump -u root -p --all-databases > full_backup.sql
+mysqldump -u root -p database_name > database_backup.sql
+mysqldump -u root -p database_name table_name > table_backup.sql
+
+# With options
+mysqldump -u root -p \
+    --single-transaction \      # Consistent snapshot
+    --routines \                # Include stored procedures
+    --triggers \                # Include triggers
+    --events \                  # Include events
+    database_name > backup.sql
+
+# Compressed backup
+mysqldump -u root -p database_name | gzip > backup.sql.gz
+
+# Restore from backup
+mysql -u root -p database_name < backup.sql
+gunzip < backup.sql.gz | mysql -u root -p database_name
+```
+
+### PostgreSQL Backup
+
+```bash
+# Full backup
+pg_dump database_name > backup.sql
+pg_dump -U username -h hostname database_name > backup.sql
+
+# All databases
+pg_dumpall > full_backup.sql
+
+# Custom format (compressed, flexible restore)
+pg_dump -Fc database_name > backup.dump
+
+# Restore
+psql database_name < backup.sql
+pg_restore -d database_name backup.dump
+```
+
+### Point-in-Time Recovery (PITR)
+
+```sql
+-- MySQL: Enable binary logging
+-- my.cnf
+[mysqld]
+log_bin = /var/log/mysql/mysql-bin.log
+server_id = 1
+
+-- Restore to specific point in time
+-- 1. Restore last full backup
+-- 2. Apply binary logs up to desired time
+mysqlbinlog --stop-datetime="2024-01-15 14:30:00" mysql-bin.000001 | mysql -u root -p
+
+-- PostgreSQL: Enable WAL archiving
+-- postgresql.conf
+archive_mode = on
+archive_command = 'cp %p /archive/%f'
+
+-- Restore to point in time
+-- recovery.conf
+restore_command = 'cp /archive/%f %p'
+recovery_target_time = '2024-01-15 14:30:00'
+```
+
+### Backup Best Practices
+
+```
+✅ DO:
+────────
+• Test restores regularly
+• Keep backups off-site (3-2-1 rule)
+• Encrypt backup files
+• Document recovery procedures
+• Monitor backup jobs
+• Retain multiple backup versions
+
+❌ DON'T:
+──────────
+• Store backups on same server
+• Skip backup verification
+• Forget to backup transaction logs
+• Ignore backup failures
+• Delete old backups without policy
+```
+
+---
+
+## 16. OLTP vs OLAP
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    OLTP vs OLAP                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  OLTP (Online Transaction Processing)                           │
+│  ─────────────────────────────────────                          │
+│  • Day-to-day operations                                        │
+│  • Many short transactions                                      │
+│  • INSERT, UPDATE, DELETE heavy                                 │
+│  • Current data                                                 │
+│  • Normalized schema                                            │
+│  • Fast response time                                           │
+│  • Examples: Banking, E-commerce, CRM                           │
+│                                                                 │
+│  OLAP (Online Analytical Processing)                            │
+│  ───────────────────────────────────                            │
+│  • Business intelligence, reporting                             │
+│  • Complex queries, aggregations                                │
+│  • SELECT heavy (read-mostly)                                   │
+│  • Historical data                                              │
+│  • Denormalized schema (star/snowflake)                         │
+│  • Query time less critical                                     │
+│  • Examples: Data warehouse, BI dashboards                      │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Comparison Table
+
+| Aspect | OLTP | OLAP |
+|--------|------|------|
+| **Purpose** | Daily transactions | Analysis & reporting |
+| **Operations** | INSERT, UPDATE, DELETE | SELECT, aggregations |
+| **Data** | Current, detailed | Historical, summarized |
+| **Schema** | Normalized (3NF) | Denormalized (Star/Snowflake) |
+| **Queries** | Simple, predefined | Complex, ad-hoc |
+| **Response** | Milliseconds | Seconds to minutes |
+| **Users** | Many (customers, clerks) | Few (analysts, managers) |
+| **Size** | GB to TB | TB to PB |
+| **Backup** | Frequent | Less frequent |
+| **Examples** | MySQL, PostgreSQL | Snowflake, Redshift, BigQuery |
+
+### Data Warehouse Schema Designs
+
+#### Star Schema
+
+```
+                    ┌─────────────────┐
+                    │  FACT_SALES     │
+                    ├─────────────────┤
+     ┌──────────────│ product_id (FK) │──────────────┐
+     │              │ customer_id (FK)│              │
+     │              │ date_id (FK)    │              │
+     │              │ store_id (FK)   │              │
+     │              │ quantity        │              │
+     │              │ amount          │              │
+     │              └─────────────────┘              │
+     │                      │                        │
+     ▼                      ▼                        ▼
+┌──────────┐        ┌──────────────┐        ┌──────────────┐
+│DIM_PRODUCT│       │ DIM_CUSTOMER │        │  DIM_DATE    │
+├──────────┤        ├──────────────┤        ├──────────────┤
+│ id (PK)  │        │ id (PK)      │        │ id (PK)      │
+│ name     │        │ name         │        │ date         │
+│ category │        │ city         │        │ month        │
+│ brand    │        │ country      │        │ quarter      │
+└──────────┘        └──────────────┘        │ year         │
+                                            └──────────────┘
+```
+
+```sql
+-- Star schema query example
+SELECT
+    d.year,
+    d.month,
+    p.category,
+    c.country,
+    SUM(f.amount) as total_sales,
+    COUNT(*) as num_transactions
+FROM fact_sales f
+JOIN dim_date d ON f.date_id = d.id
+JOIN dim_product p ON f.product_id = p.id
+JOIN dim_customer c ON f.customer_id = c.id
+WHERE d.year = 2024
+GROUP BY d.year, d.month, p.category, c.country
+ORDER BY total_sales DESC;
+```
+
+#### ETL Process (Extract, Transform, Load)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      ETL PROCESS                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  EXTRACT                 TRANSFORM               LOAD           │
+│  ───────                 ─────────               ────           │
+│                                                                 │
+│  ┌─────────┐            ┌─────────┐            ┌─────────┐      │
+│  │  OLTP   │───────────►│ Staging │───────────►│  Data   │      │
+│  │ Systems │            │  Area   │            │Warehouse│      │
+│  └─────────┘            └─────────┘            └─────────┘      │
+│  ┌─────────┐                 │                                  │
+│  │   API   │─────────────────┤                                  │
+│  └─────────┘                 │                                  │
+│  ┌─────────┐                 ▼                                  │
+│  │  Files  │          • Clean data                              │
+│  └─────────┘          • Validate                                │
+│                       • Deduplicate                             │
+│                       • Aggregate                               │
+│                       • Join sources                            │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Modern Data Stack
+
+```
+Traditional:                    Modern:
+────────────                    ───────
+
+OLTP → ETL → Data Warehouse    OLTP → ELT → Data Lake/Lakehouse
+                ↓                              ↓
+           OLAP Cube                    Query Engine
+                ↓                              ↓
+           BI Tools                    BI Tools / ML
+
+Popular Modern Tools:
+• Data Lake: S3, Azure Data Lake, GCS
+• Data Warehouse: Snowflake, BigQuery, Redshift
+• ETL/ELT: Airflow, dbt, Fivetran
+• BI: Tableau, Power BI, Looker, Metabase
+```
+
+---
+
+## 17. Interview Questions
+
+### Basic Level
+
+**Q1: What is the difference between DELETE, TRUNCATE, and DROP?**
+
+| Command | Description | Rollback | Speed | Triggers |
+|---------|-------------|----------|-------|----------|
+| DELETE | Remove specific rows | Yes | Slow | Yes |
+| TRUNCATE | Remove all rows, keep structure | No | Fast | No |
+| DROP | Remove entire table | No | Fast | No |
+
+---
+
+**Q2: What is the difference between WHERE and HAVING?**
+
+| WHERE | HAVING |
+|-------|--------|
+| Filters rows BEFORE grouping | Filters groups AFTER grouping |
+| Cannot use aggregate functions | Can use aggregate functions |
+| Used with SELECT, UPDATE, DELETE | Used only with SELECT + GROUP BY |
+
+---
+
+**Q3: What are the different types of JOINs?**
+
+- **INNER JOIN:** Only matching rows
+- **LEFT JOIN:** All left + matching right
+- **RIGHT JOIN:** All right + matching left
+- **FULL JOIN:** All rows from both
+- **CROSS JOIN:** Cartesian product
+- **SELF JOIN:** Table joined with itself
+
+---
+
+**Q4: What is the difference between UNION and UNION ALL?**
+
+| UNION | UNION ALL |
+|-------|-----------|
+| Removes duplicates | Keeps duplicates |
+| Slower | Faster |
+
+---
+
+**Q5: What is a Primary Key vs Unique Key?**
+
+| Primary Key | Unique Key |
+|-------------|------------|
+| One per table | Multiple allowed |
+| Cannot be NULL | Can have NULL |
+| Creates clustered index | Creates non-clustered index |
+
+---
+
+### Intermediate Level
+
+**Q6: What is the N+1 Query Problem?**
+
+Executing 1 query to fetch N records, then N additional queries for related data.
+
+```sql
+-- Bad (N+1): 101 queries
+SELECT * FROM users;  -- 1 query, returns 100 users
+-- Then for each user:
+SELECT * FROM orders WHERE user_id = ?;  -- 100 queries!
+
+-- Good (2 queries)
+SELECT * FROM users;
+SELECT * FROM orders WHERE user_id IN (1, 2, ..., 100);
+
+-- Best (1 query with JOIN)
+SELECT u.*, o.* FROM users u LEFT JOIN orders o ON u.id = o.user_id;
+```
+
+---
+
+**Q7: How to find the second highest salary?**
+
+```sql
+-- Method 1: LIMIT OFFSET
+SELECT DISTINCT salary FROM employees ORDER BY salary DESC LIMIT 1 OFFSET 1;
+
+-- Method 2: Subquery
+SELECT MAX(salary) FROM employees WHERE salary < (SELECT MAX(salary) FROM employees);
+
+-- Method 3: DENSE_RANK
+SELECT salary FROM (
+    SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) as rank
     FROM employees
-    WHERE manager_id IS NULL
-    
-    UNION ALL
-    
-    SELECT e.id, e.name, e.manager_id, eh.level + 1
-    FROM employees e
-    JOIN employee_hierarchy eh ON e.manager_id = eh.id
-)
-SELECT * FROM employee_hierarchy;
+) ranked WHERE rank = 2;
 ```
 
 ---
 
-### Pivot Tables
+**Q8: How to find duplicate records?**
 
-**Using CASE:**
 ```sql
-SELECT 
+SELECT email, COUNT(*) as count
+FROM users
+GROUP BY email
+HAVING COUNT(*) > 1;
+```
+
+---
+
+**Q9: Explain RANK() vs DENSE_RANK() vs ROW_NUMBER()**
+
+```sql
+-- Data: 90, 90, 80, 70
+ROW_NUMBER():  1, 2, 3, 4  -- Always unique
+RANK():        1, 1, 3, 4  -- Same rank for ties, skips
+DENSE_RANK():  1, 1, 2, 3  -- Same rank for ties, no skip
+```
+
+---
+
+**Q10: What is a Covering Index?**
+
+An index that contains all columns needed by a query, avoiding table access.
+
+```sql
+CREATE INDEX idx_covering ON orders(customer_id, order_date, amount);
+
+-- This query uses ONLY the index
+SELECT customer_id, order_date, amount FROM orders WHERE customer_id = 123;
+```
+
+---
+
+### Advanced Level
+
+**Q11: Explain database isolation levels and their problems.**
+
+| Level | Dirty Read | Non-Repeatable | Phantom |
+|-------|------------|----------------|---------|
+| READ UNCOMMITTED | Yes | Yes | Yes |
+| READ COMMITTED | No | Yes | Yes |
+| REPEATABLE READ | No | No | Yes |
+| SERIALIZABLE | No | No | No |
+
+---
+
+**Q12: What is database sharding and when to use it?**
+
+Sharding is horizontal partitioning across multiple databases.
+
+**When to use:**
+- Data too large for single server
+- High write throughput needed
+- Geographic distribution required
+
+**Strategies:**
+- Range-based: user_id 1-1M
+- Hash-based: user_id % shards
+- Geographic: by region
+
+---
+
+**Q13: Explain CAP theorem with examples.**
+
+- **CA (PostgreSQL single):** Consistent + Available, no partition tolerance
+- **CP (MongoDB):** Consistent + Partition tolerant, may be unavailable
+- **AP (Cassandra):** Available + Partition tolerant, eventually consistent
+
+---
+
+**Q14: How to optimize a slow query?**
+
+1. Use EXPLAIN to analyze
+2. Add appropriate indexes
+3. Select only needed columns
+4. Avoid functions in WHERE
+5. Use JOIN instead of subquery
+6. Use EXISTS instead of IN
+7. Add LIMIT for pagination
+8. Consider denormalization
+
+---
+
+**Q15: What are database design anti-patterns?**
+
+1. **EAV (Entity-Attribute-Value):** Generic attributes table
+2. **Polymorphic associations:** commentable_type column
+3. **ENUM abuse:** Hard to modify statuses
+4. **UUID as string:** Use BINARY(16) instead
+5. **Over-normalization:** Too many joins
+6. **Under-indexing:** Slow queries
+7. **Over-indexing:** Slow writes
+
+---
+
+### SQL Coding Questions
+
+**Q16: Write a query to get employees earning more than their department average.**
+
+```sql
+SELECT e.name, e.salary, e.department
+FROM employees e
+WHERE e.salary > (
+    SELECT AVG(salary)
+    FROM employees
+    WHERE department = e.department
+);
+
+-- Or with CTE
+WITH dept_avg AS (
+    SELECT department, AVG(salary) as avg_salary
+    FROM employees
+    GROUP BY department
+)
+SELECT e.name, e.salary, e.department
+FROM employees e
+JOIN dept_avg d ON e.department = d.department
+WHERE e.salary > d.avg_salary;
+```
+
+---
+
+**Q17: Write a query to find customers who have never ordered.**
+
+```sql
+-- Using LEFT JOIN
+SELECT c.* FROM customers c
+LEFT JOIN orders o ON c.id = o.customer_id
+WHERE o.id IS NULL;
+
+-- Using NOT EXISTS
+SELECT * FROM customers c
+WHERE NOT EXISTS (SELECT 1 FROM orders WHERE customer_id = c.id);
+
+-- Using NOT IN
+SELECT * FROM customers
+WHERE id NOT IN (SELECT customer_id FROM orders);
+```
+
+---
+
+**Q18: Write a query to get running total of sales.**
+
+```sql
+SELECT
+    order_date,
+    amount,
+    SUM(amount) OVER (ORDER BY order_date) as running_total
+FROM orders;
+```
+
+---
+
+**Q19: Write a query to pivot data (rows to columns).**
+
+```sql
+SELECT
     product,
     SUM(CASE WHEN month = 'Jan' THEN sales ELSE 0 END) as Jan,
     SUM(CASE WHEN month = 'Feb' THEN sales ELSE 0 END) as Feb,
@@ -1408,1084 +3947,64 @@ GROUP BY product;
 
 ---
 
-## More Interview Questions
-
-### Q11: What is the difference between RANK() and DENSE_RANK()?
-
-**Answer:**
-- **RANK()** - Leaves gaps in ranking (1, 2, 2, 4)
-- **DENSE_RANK()** - No gaps in ranking (1, 2, 2, 3)
+**Q20: Delete duplicate rows keeping one (lowest ID).**
 
 ```sql
-SELECT 
-    name,
-    score,
-    RANK() OVER (ORDER BY score DESC) as rank,
-    DENSE_RANK() OVER (ORDER BY score DESC) as dense_rank
-FROM students;
+-- Using self-join
+DELETE e1 FROM employees e1
+JOIN employees e2 ON e1.email = e2.email
+WHERE e1.id > e2.id;
 
--- Output:
--- Alice   95   1   1
--- Bob     90   2   2
--- Charlie 90   2   2
--- David   85   4   3  (RANK skips 3, DENSE_RANK doesn't)
-```
-
----
-
-### Q12: What is the difference between TRUNCATE and DELETE?
-
-| DELETE                        | TRUNCATE                      |
-|-------------------------------|-------------------------------|
-| DML command                   | DDL command                   |
-| Can have WHERE clause         | No WHERE clause               |
-| Row by row deletion           | All rows at once              |
-| Slower                        | Faster                        |
-| Can be rolled back            | Cannot be rolled back         |
-| Triggers are fired            | Triggers not fired            |
-| Maintains identity            | Resets identity               |
-
----
-
-### Q13: What is the difference between WHERE and HAVING?
-
-```sql
--- WHERE - Filters rows before grouping
-SELECT department, COUNT(*)
-FROM employees
-WHERE salary > 50000
-GROUP BY department;
-
--- HAVING - Filters groups after grouping
-SELECT department, COUNT(*)
-FROM employees
-GROUP BY department
-HAVING COUNT(*) > 5;
-
--- Both together
-SELECT department, AVG(salary) as avg_salary
-FROM employees
-WHERE status = 'active'
-GROUP BY department
-HAVING AVG(salary) > 60000;
-```
-
----
-
-### Q14: What is a Self Join?
-
-**Answer:** Join a table with itself.
-
-```sql
--- Find employees and their managers
-SELECT 
-    e.name as employee,
-    m.name as manager
-FROM employees e
-LEFT JOIN employees m ON e.manager_id = m.id;
-
--- Find employees in same department
-SELECT 
-    e1.name as employee1,
-    e2.name as employee2,
-    e1.department
-FROM employees e1
-JOIN employees e2 ON e1.department = e2.department
-WHERE e1.id < e2.id;  -- Avoid duplicates
-```
-
----
-
-### Q15: What is the N+1 Query Problem?
-
-**Answer:** Executing 1 query to fetch N records, then N additional queries to fetch related data.
-
-**Bad (N+1):**
-```sql
--- 1 query to get users
-SELECT * FROM users;  -- Returns 100 users
-
--- Then 100 queries for orders
-SELECT * FROM orders WHERE user_id = 1;
-SELECT * FROM orders WHERE user_id = 2;
-...
-SELECT * FROM orders WHERE user_id = 100;
-```
-
-**Good (2 queries):**
-```sql
--- 1 query to get users
-SELECT * FROM users;
-
--- 1 query to get all orders
-SELECT * FROM orders WHERE user_id IN (1, 2, ..., 100);
-```
-
-**Best (1 query with JOIN):**
-```sql
-SELECT u.*, o.*
-FROM users u
-LEFT JOIN orders o ON u.id = o.user_id;
-```
-
----
-
-### Q16: How to find duplicate records?
-
-```sql
--- Find duplicate emails
-SELECT email, COUNT(*)
-FROM users
-GROUP BY email
-HAVING COUNT(*) > 1;
-
--- Get all duplicate rows
-SELECT *
-FROM users
-WHERE email IN (
-    SELECT email
-    FROM users
-    GROUP BY email
-    HAVING COUNT(*) > 1
-);
-```
-
----
-
-### Q17: How to find second highest salary?
-
-```sql
--- Method 1: Using LIMIT OFFSET
-SELECT DISTINCT salary
-FROM employees
-ORDER BY salary DESC
-LIMIT 1 OFFSET 1;
-
--- Method 2: Using subquery
-SELECT MAX(salary)
-FROM employees
-WHERE salary < (SELECT MAX(salary) FROM employees);
-
--- Method 3: Using DENSE_RANK
-SELECT salary
-FROM (
-    SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) as rank
-    FROM employees
-) ranked
-WHERE rank = 2;
-```
-
----
-
-### Q18: How to delete duplicate rows keeping one?
-
-```sql
--- Keep row with lowest ID
-DELETE e1
-FROM employees e1
-JOIN employees e2
-WHERE e1.email = e2.email
-AND e1.id > e2.id;
-
--- Or using window function
-WITH cte AS (
-    SELECT *,
-           ROW_NUMBER() OVER (PARTITION BY email ORDER BY id) as rn
+-- Using CTE (PostgreSQL)
+WITH duplicates AS (
+    SELECT id, ROW_NUMBER() OVER (PARTITION BY email ORDER BY id) as rn
     FROM employees
 )
-DELETE FROM cte WHERE rn > 1;
+DELETE FROM employees WHERE id IN (SELECT id FROM duplicates WHERE rn > 1);
 ```
 
 ---
 
-## Query Performance Tips
+## Quick Reference Card
 
-### Do's ✅
-
-1. **Use indexes wisely**
-2. **Select only needed columns**
-3. **Use LIMIT for pagination**
-4. **Use appropriate data types**
-5. **Normalize database**
-6. **Use connection pooling**
-7. **Cache frequent queries**
-8. **Use EXPLAIN to analyze queries**
-9. **Batch inserts instead of individual**
-10. **Use prepared statements**
-
-### Don'ts ❌
-
-1. **Don't use SELECT \***
-2. **Don't use functions in WHERE clause**
-3. **Don't use LIKE with leading wildcard (%search)**
-4. **Don't use OR in WHERE (use IN instead)**
-5. **Don't create too many indexes**
-6. **Don't forget to close connections**
-7. **Don't store large BLOBs in database**
-8. **Don't use subqueries when JOIN is possible**
-9. **Don't forget to handle NULL values**
-10. **Don't use cursors when set-based operations possible**
-
----
-
----
-
-## Advanced Interview Questions
-
-### Q19: What is database sharding and when to use it?
-
-**Answer:**
-Sharding is horizontal partitioning where data is distributed across multiple database servers.
-
-**Types:**
-1. **Range-based sharding** - Data divided by ranges (e.g., user IDs 1-1000, 1001-2000)
-2. **Hash-based sharding** - Hash function determines shard (e.g., user_id % 4)
-3. **Geographic sharding** - Data divided by location
-4. **Directory-based sharding** - Lookup table maintains shard mapping
-
-**Example:**
 ```
-Without Sharding:
-┌─────────────────────┐
-│   Single Database   │
-│  - All 10M users    │
-└─────────────────────┘
-
-With Sharding:
-┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
-│ Shard 1  │ │ Shard 2  │ │ Shard 3  │ │ Shard 4  │
-│ Users    │ │ Users    │ │ Users    │ │ Users    │
-│ 1-2.5M   │ │ 2.5-5M   │ │ 5-7.5M   │ │ 7.5-10M  │
-└──────────┘ └──────────┘ └──────────┘ └──────────┘
-```
-
-**Pros:**
-- Improved performance
-- Horizontal scalability
-- Fault isolation
-
-**Cons:**
-- Complex implementation
-- Cross-shard joins difficult
-- Data rebalancing complexity
-
-**When to use:**
-- Massive datasets (> 100GB)
-- High write throughput needed
-- Geographic distribution required
-
----
-
-### Q20: What is database replication and its types?
-
-**Answer:**
-Replication is copying data from master to one or more replica databases.
-
-**Types:**
-
-**1. Master-Slave (Primary-Replica):**
-```
-        ┌────────┐
-        │ Master │ (Writes)
-        └────┬───┘
-         ┌───┴────┬─────────┐
-         │        │         │
-     ┌───▼───┐ ┌─▼────┐ ┌──▼────┐
-     │Slave 1│ │Slave 2│ │Slave 3│ (Reads)
-     └───────┘ └───────┘ └───────┘
-```
-
-**2. Master-Master (Multi-Primary):**
-```
-     ┌────────┐ ◄───► ┌────────┐
-     │Master 1│       │Master 2│
-     └────────┘       └────────┘
-     (Both read/write)
-```
-
-**Replication Types:**
-- **Synchronous** - Wait for replica confirmation (slower, consistent)
-- **Asynchronous** - Don't wait (faster, eventual consistency)
-- **Semi-synchronous** - Wait for at least one replica
-
-**Benefits:**
-- Read scalability
-- High availability
-- Disaster recovery
-- Geographic distribution
-
-**Example configuration (MySQL):**
-```sql
--- On Master
-CREATE USER 'replica'@'%' IDENTIFIED BY 'password';
-GRANT REPLICATION SLAVE ON *.* TO 'replica'@'%';
-
--- On Slave
-CHANGE MASTER TO
-    MASTER_HOST='master_ip',
-    MASTER_USER='replica',
-    MASTER_PASSWORD='password',
-    MASTER_LOG_FILE='mysql-bin.000001',
-    MASTER_LOG_POS=107;
-
-START SLAVE;
+┌─────────────────────────────────────────────────────────────────┐
+│                   DATABASE CHEAT SHEET                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  QUERY ORDER:  FROM → WHERE → GROUP BY → HAVING → SELECT        │
+│                → ORDER BY → LIMIT                               │
+│                                                                 │
+│  JOINS:        INNER (matching) | LEFT (all left) |             │
+│                RIGHT (all right) | FULL (all)                   │
+│                                                                 │
+│  KEYS:         PK (unique, not null, one) |                     │
+│                FK (references PK) | UK (unique, allows null)    │
+│                                                                 │
+│  ACID:         Atomicity | Consistency | Isolation | Durability │
+│                                                                 │
+│  NORMAL FORMS: 1NF (atomic) → 2NF (no partial dep) →            │
+│                3NF (no transitive dep) → BCNF                   │
+│                                                                 │
+│  INDEXES:      Clustered (1/table, physical order) |            │
+│                Non-clustered (pointer) | Composite (multi-col)  │
+│                                                                 │
+│  ISOLATION:    READ UNCOMMITTED → READ COMMITTED →              │
+│                REPEATABLE READ → SERIALIZABLE                   │
+│                                                                 │
+│  SCALING:      Replication (read) | Sharding (write) |          │
+│                Pooling (connections)                            │
+│                                                                 │
+│  CAP:          Consistency + Availability + Partition Tolerance │
+│                (Pick 2)                                         │
+│                                                                 │
+│  DB CHOICE:    RDBMS (ACID, structured) |                       │
+│                Document (flexible) | Key-Value (cache) |        │
+│                Column (writes) | Graph (relationships)          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Q21: What is CAP theorem?
-
-**Answer:**
-CAP theorem states that a distributed database can only guarantee 2 out of 3:
-
-1. **Consistency** - All nodes see same data
-2. **Availability** - Every request gets response
-3. **Partition Tolerance** - System works despite network failures
-
-**Trade-offs:**
-
-**CA (Consistency + Availability):**
-- Traditional relational databases (single server)
-- Example: PostgreSQL, MySQL (single instance)
-
-**CP (Consistency + Partition Tolerance):**
-- Sacrifice availability for consistency
-- Example: MongoDB, HBase, Redis
-
-**AP (Availability + Partition Tolerance):**
-- Sacrifice consistency for availability
-- Example: Cassandra, DynamoDB, CouchDB
-
-**Example scenario:**
-```
-User updates balance: $100 → $150
-
-CP System (MongoDB):
-- Update waits for all nodes to agree
-- If network partition, some nodes reject updates
-- ✅ Consistent
-- ❌ Not always available
-
-AP System (Cassandra):
-- Update succeeds even with network partition
-- Nodes may have different values temporarily
-- ✅ Always available
-- ❌ Eventually consistent
-```
-
----
-
-### Q22: What is connection pooling and why is it important?
-
-**Answer:**
-Connection pooling maintains a pool of database connections that can be reused.
-
-**Without pooling:**
-```java
-// Create connection (expensive - 50-100ms)
-Connection conn = DriverManager.getConnection(url, user, password);
-
-// Use connection
-// ...
-
-// Close connection
-conn.close();
-
-// Next request: Create connection again (expensive!)
-```
-
-**With pooling:**
-```java
-// Get connection from pool (fast - 1ms)
-Connection conn = dataSource.getConnection();
-
-// Use connection
-// ...
-
-// Return to pool (not closed)
-conn.close();
-
-// Next request: Reuse from pool (fast!)
-```
-
-**Benefits:**
-- Faster response times
-- Reduced resource usage
-- Better scalability
-- Connection limit control
-
-**Popular libraries:**
-- HikariCP (fastest)
-- Apache Commons DBCP
-- C3P0
-
-**Configuration example:**
-```properties
-spring.datasource.hikari.maximum-pool-size=10
-spring.datasource.hikari.minimum-idle=5
-spring.datasource.hikari.connection-timeout=20000
-spring.datasource.hikari.idle-timeout=300000
-spring.datasource.hikari.max-lifetime=1200000
-```
-
----
-
-### Q23: Explain ACID properties with examples.
-
-**Answer:**
-
-**A - Atomicity:**
-All operations succeed or all fail (no partial updates).
-
-```sql
-START TRANSACTION;
-
-UPDATE accounts SET balance = balance - 100 WHERE id = 1;
-UPDATE accounts SET balance = balance + 100 WHERE id = 2;
-
-COMMIT;  -- Both succeed
--- OR
-ROLLBACK;  -- Both fail
-```
-
-**C - Consistency:**
-Database remains in valid state before and after transaction.
-
-```sql
--- Constraint: balance >= 0
-START TRANSACTION;
-
-UPDATE accounts SET balance = balance - 200 WHERE id = 1;
--- If balance becomes negative, transaction fails
--- Database stays consistent
-
-ROLLBACK;
-```
-
-**I - Isolation:**
-Concurrent transactions don't interfere with each other.
-
-```sql
--- Transaction 1
-START TRANSACTION;
-SELECT balance FROM accounts WHERE id = 1;  -- Reads 1000
-UPDATE accounts SET balance = balance - 100 WHERE id = 1;
-COMMIT;
-
--- Transaction 2 (concurrent)
-START TRANSACTION;
-SELECT balance FROM accounts WHERE id = 1;  -- May read 1000 or 900 depending on isolation level
-COMMIT;
-```
-
-**D - Durability:**
-Committed changes persist even after system failure.
-
-```sql
-START TRANSACTION;
-INSERT INTO orders VALUES (1, 'Product', 100);
-COMMIT;
-
--- System crash here
-
--- After restart, order is still there
-SELECT * FROM orders WHERE id = 1;  -- Found
-```
-
----
-
-### Q24: What are isolation levels and their problems?
-
-**Answer:**
-
-**Isolation Levels:**
-1. **READ UNCOMMITTED** - Can read uncommitted data
-2. **READ COMMITTED** - Can read only committed data
-3. **REPEATABLE READ** - Same query returns same results
-4. **SERIALIZABLE** - Full isolation (slowest)
-
-**Problems:**
-
-**1. Dirty Read:**
-Reading uncommitted data that gets rolled back.
-
-```sql
--- Transaction 1
-UPDATE accounts SET balance = 1000 WHERE id = 1;
--- Not committed yet
-
--- Transaction 2 (READ UNCOMMITTED)
-SELECT balance FROM accounts WHERE id = 1;  -- Reads 1000
-
--- Transaction 1
-ROLLBACK;  -- Oops! Transaction 2 read wrong data
-```
-
-**2. Non-Repeatable Read:**
-Same query returns different results.
-
-```sql
--- Transaction 1
-SELECT balance FROM accounts WHERE id = 1;  -- Reads 1000
-
--- Transaction 2
-UPDATE accounts SET balance = 1500 WHERE id = 1;
-COMMIT;
-
--- Transaction 1
-SELECT balance FROM accounts WHERE id = 1;  -- Reads 1500 (different!)
-```
-
-**3. Phantom Read:**
-New rows appear in subsequent queries.
-
-```sql
--- Transaction 1
-SELECT COUNT(*) FROM orders WHERE status = 'pending';  -- Returns 10
-
--- Transaction 2
-INSERT INTO orders VALUES (11, 'pending');
-COMMIT;
-
--- Transaction 1
-SELECT COUNT(*) FROM orders WHERE status = 'pending';  -- Returns 11 (phantom row!)
-```
-
-**Isolation Level Matrix:**
-
-| Level | Dirty Read | Non-Repeatable Read | Phantom Read |
-|-------|------------|---------------------|--------------|
-| READ UNCOMMITTED | ✅ | ✅ | ✅ |
-| READ COMMITTED | ❌ | ✅ | ✅ |
-| REPEATABLE READ | ❌ | ❌ | ✅ |
-| SERIALIZABLE | ❌ | ❌ | ❌ |
-
-**Setting isolation level:**
-```sql
--- MySQL
-SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
-
--- PostgreSQL
-BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-```
-
----
-
-### Q25: How to optimize a slow query?
-
-**Answer:**
-
-**Step-by-step approach:**
-
-**1. Use EXPLAIN to analyze:**
-```sql
-EXPLAIN SELECT *
-FROM orders o
-JOIN customers c ON o.customer_id = c.id
-WHERE o.created_at > '2024-01-01'
-AND c.country = 'USA';
-```
-
-**2. Check for:**
-- Full table scan (type = ALL)
-- Missing indexes
-- Large row counts
-- filesort or temporary table
-
-**3. Common optimizations:**
-
-**Add indexes:**
-```sql
-CREATE INDEX idx_orders_created ON orders(created_at);
-CREATE INDEX idx_customers_country ON customers(country);
-```
-
-**Select only needed columns:**
-```sql
--- Bad
-SELECT * FROM orders;
-
--- Good
-SELECT id, order_date, amount FROM orders;
-```
-
-**Use LIMIT:**
-```sql
-SELECT * FROM orders
-ORDER BY created_at DESC
-LIMIT 10;
-```
-
-**Avoid functions in WHERE:**
-```sql
--- Bad (index not used)
-SELECT * FROM orders WHERE YEAR(created_at) = 2024;
-
--- Good (index used)
-SELECT * FROM orders
-WHERE created_at >= '2024-01-01'
-AND created_at < '2025-01-01';
-```
-
-**Use JOIN instead of subquery:**
-```sql
--- Bad (slow subquery)
-SELECT * FROM orders
-WHERE customer_id IN (SELECT id FROM customers WHERE country = 'USA');
-
--- Good (faster join)
-SELECT o.* FROM orders o
-JOIN customers c ON o.customer_id = c.id
-WHERE c.country = 'USA';
-```
-
-**Use EXISTS instead of IN:**
-```sql
--- Slower for large datasets
-SELECT * FROM customers
-WHERE id IN (SELECT customer_id FROM orders);
-
--- Faster
-SELECT * FROM customers c
-WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id);
-```
-
-**Denormalize if needed:**
-```sql
--- Instead of joining every time
-SELECT o.*, c.name FROM orders o
-JOIN customers c ON o.customer_id = c.id;
-
--- Add customer_name to orders table
-ALTER TABLE orders ADD COLUMN customer_name VARCHAR(100);
-UPDATE orders o SET customer_name = (SELECT name FROM customers WHERE id = o.customer_id);
-```
-
----
-
-### Q26: What is database indexing and types?
-
-**Answer:**
-Index is a data structure that improves query performance.
-
-**Index Types:**
-
-**1. Clustered Index:**
-- Determines physical order of data
-- One per table
-- Primary key creates clustered index
-
-```sql
-CREATE TABLE users (
-    id INT PRIMARY KEY,  -- Clustered index
-    name VARCHAR(100)
-);
-```
-
-**2. Non-Clustered Index:**
-- Separate structure with pointers to data
-- Multiple per table
-
-```sql
-CREATE INDEX idx_name ON users(name);
-```
-
-**3. Unique Index:**
-- Ensures uniqueness
-
-```sql
-CREATE UNIQUE INDEX idx_email ON users(email);
-```
-
-**4. Composite Index:**
-- Index on multiple columns
-
-```sql
-CREATE INDEX idx_name_age ON users(name, age);
-
--- Used by queries:
-SELECT * FROM users WHERE name = 'John' AND age = 25;  -- ✅ Uses index
-SELECT * FROM users WHERE name = 'John';  -- ✅ Uses index (leftmost prefix)
-SELECT * FROM users WHERE age = 25;  -- ❌ Doesn't use index (not leftmost)
-```
-
-**5. Covering Index:**
-- Index contains all columns needed by query
-
-```sql
-CREATE INDEX idx_covering ON orders(customer_id, order_date, amount);
-
--- Query doesn't need to access table
-SELECT customer_id, order_date, amount
-FROM orders
-WHERE customer_id = 123;  -- All columns in index!
-```
-
-**6. Full-Text Index:**
-- For text search
-
-```sql
-CREATE FULLTEXT INDEX idx_description ON products(description);
-
-SELECT * FROM products
-WHERE MATCH(description) AGAINST('wireless mouse');
-```
-
-**When to use indexes:**
-- ✅ Frequently searched columns (WHERE, JOIN)
-- ✅ Columns used in ORDER BY, GROUP BY
-- ✅ Foreign key columns
-
-**When NOT to use:**
-- ❌ Small tables
-- ❌ Frequently updated columns
-- ❌ Columns with low cardinality (e.g., boolean)
-- ❌ Too many indexes (slows down writes)
-
----
-
-### Q27: What is normalization and denormalization trade-offs?
-
-**Answer:**
-
-**Normalization:**
-- Organizing data to reduce redundancy
-- Faster writes, slower reads
-- Less storage, more joins
-
-**Denormalization:**
-- Adding redundancy for performance
-- Slower writes, faster reads
-- More storage, fewer joins
-
-**Example:**
-
-**Normalized (3NF):**
-```sql
--- Orders table
-CREATE TABLE orders (
-    id INT PRIMARY KEY,
-    customer_id INT,
-    order_date DATE,
-    amount DECIMAL
-);
-
--- Customers table
-CREATE TABLE customers (
-    id INT PRIMARY KEY,
-    name VARCHAR(100),
-    email VARCHAR(100),
-    country VARCHAR(50)
-);
-
--- Query (needs JOIN)
-SELECT o.id, o.amount, c.name, c.email
-FROM orders o
-JOIN customers c ON o.customer_id = c.id;
-```
-
-**Denormalized:**
-```sql
--- Orders table (with customer data)
-CREATE TABLE orders (
-    id INT PRIMARY KEY,
-    customer_id INT,
-    customer_name VARCHAR(100),  -- Denormalized
-    customer_email VARCHAR(100), -- Denormalized
-    order_date DATE,
-    amount DECIMAL
-);
-
--- Query (no JOIN needed)
-SELECT id, amount, customer_name, customer_email
-FROM orders;
-```
-
-**When to denormalize:**
-- ✅ Read-heavy applications
-- ✅ Performance is critical
-- ✅ Data doesn't change often
-- ✅ Complex queries with many joins
-
-**When to stay normalized:**
-- ✅ Write-heavy applications
-- ✅ Data changes frequently
-- ✅ Data consistency is critical
-- ✅ Storage is limited
-
----
-
-### Q28: How to handle database migrations?
-
-**Answer:**
-Database migrations are versioned changes to database schema.
-
-**Best practices:**
-
-**1. Version control migrations:**
-```
-migrations/
-  ├── V1__create_users_table.sql
-  ├── V2__add_email_to_users.sql
-  ├── V3__create_orders_table.sql
-  └── V4__add_index_to_orders.sql
-```
-
-**2. Always use UP and DOWN:**
-```sql
--- V2__add_email_to_users.sql (UP)
-ALTER TABLE users ADD COLUMN email VARCHAR(100);
-
--- V2__add_email_to_users_rollback.sql (DOWN)
-ALTER TABLE users DROP COLUMN email;
-```
-
-**3. Never modify existing migrations:**
-```
-❌ Bad: Edit V2__add_email_to_users.sql
-
-✅ Good: Create V5__modify_email_column.sql
-```
-
-**4. Test migrations:**
-```bash
-# Test on dev/staging first
-flyway migrate -url=jdbc:postgresql://staging/mydb
-
-# Then production
-flyway migrate -url=jdbc:postgresql://prod/mydb
-```
-
-**5. Handle data migrations:**
-```sql
--- V6__migrate_user_data.sql
-UPDATE users
-SET status = 'active'
-WHERE last_login > DATE_SUB(NOW(), INTERVAL 30 DAY);
-
-UPDATE users
-SET status = 'inactive'
-WHERE last_login <= DATE_SUB(NOW(), INTERVAL 30 DAY);
-```
-
-**Tools:**
-- Flyway
-- Liquibase
-- Django migrations
-- Rails migrations
-
----
-
-### Q29: What are database design anti-patterns?
-
-**Answer:**
-
-**1. EAV (Entity-Attribute-Value) Anti-pattern:**
-```sql
--- Anti-pattern: Generic attributes table
-CREATE TABLE attributes (
-    entity_id INT,
-    attribute_name VARCHAR(50),
-    attribute_value TEXT
-);
-
-INSERT INTO attributes VALUES (1, 'name', 'John');
-INSERT INTO attributes VALUES (1, 'email', 'john@example.com');
-INSERT INTO attributes VALUES (1, 'age', '30');
-
--- Problem: No type safety, complex queries, no constraints
-```
-
-**Better approach:**
-```sql
-CREATE TABLE users (
-    id INT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(100) UNIQUE,
-    age INT CHECK (age >= 0 AND age <= 150)
-);
-```
-
-**2. Polymorphic Associations:**
-```sql
--- Anti-pattern: Comments can belong to multiple entities
-CREATE TABLE comments (
-    id INT PRIMARY KEY,
-    commentable_id INT,
-    commentable_type VARCHAR(50),  -- 'Post' or 'Photo'
-    content TEXT
-);
-
--- Problem: Can't use foreign keys, integrity issues
-```
-
-**Better approach:**
-```sql
-CREATE TABLE post_comments (
-    id INT PRIMARY KEY,
-    post_id INT REFERENCES posts(id),
-    content TEXT
-);
-
-CREATE TABLE photo_comments (
-    id INT PRIMARY KEY,
-    photo_id INT REFERENCES photos(id),
-    content TEXT
-);
-```
-
-**3. ENUM abuse:**
-```sql
--- Anti-pattern
-CREATE TABLE orders (
-    id INT PRIMARY KEY,
-    status ENUM('pending', 'processing', 'shipped', 'delivered')
-);
-
--- Problem: Hard to add new status, requires schema change
-```
-
-**Better approach:**
-```sql
-CREATE TABLE order_statuses (
-    id INT PRIMARY KEY,
-    name VARCHAR(50) UNIQUE
-);
-
-CREATE TABLE orders (
-    id INT PRIMARY KEY,
-    status_id INT REFERENCES order_statuses(id)
-);
-```
-
-**4. UUID as string:**
-```sql
--- Anti-pattern
-CREATE TABLE users (
-    id VARCHAR(36) PRIMARY KEY  -- '550e8400-e29b-41d4-a716-446655440000'
-);
-
--- Problem: Large storage (36 bytes), slower comparison
-```
-
-**Better approach:**
-```sql
--- MySQL
-CREATE TABLE users (
-    id BINARY(16) PRIMARY KEY  -- Only 16 bytes
-);
-
--- PostgreSQL
-CREATE TABLE users (
-    id UUID PRIMARY KEY
-);
-```
-
----
-
-### Q30: How to design a scalable database schema?
-
-**Answer:**
-
-**Principles:**
-
-**1. Use appropriate data types:**
-```sql
--- Bad
-CREATE TABLE users (
-    id VARCHAR(255),  -- Overkill
-    age VARCHAR(10),  -- Should be INT
-    balance VARCHAR(20),  -- Should be DECIMAL
-    active VARCHAR(5)  -- Should be BOOLEAN
-);
-
--- Good
-CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    age TINYINT UNSIGNED,  -- 0-255
-    balance DECIMAL(10, 2),
-    active BOOLEAN DEFAULT TRUE
-);
-```
-
-**2. Normalize until it hurts, denormalize until it works:**
-```sql
--- Start normalized
-CREATE TABLE orders (
-    id INT PRIMARY KEY,
-    customer_id INT REFERENCES customers(id),
-    product_id INT REFERENCES products(id)
-);
-
--- Denormalize frequently accessed data
-ALTER TABLE orders
-ADD COLUMN customer_name VARCHAR(100),
-ADD COLUMN product_name VARCHAR(100),
-ADD COLUMN product_price DECIMAL(10, 2);
-```
-
-**3. Use partitioning for large tables:**
-```sql
--- Range partitioning by date
-CREATE TABLE orders (
-    id INT,
-    order_date DATE,
-    amount DECIMAL
-)
-PARTITION BY RANGE (YEAR(order_date)) (
-    PARTITION p2022 VALUES LESS THAN (2023),
-    PARTITION p2023 VALUES LESS THAN (2024),
-    PARTITION p2024 VALUES LESS THAN (2025),
-    PARTITION p_future VALUES LESS THAN MAXVALUE
-);
-
--- Hash partitioning
-CREATE TABLE users (
-    id INT,
-    name VARCHAR(100)
-)
-PARTITION BY HASH(id)
-PARTITIONS 4;
-```
-
-**4. Use soft deletes:**
-```sql
-CREATE TABLE users (
-    id INT PRIMARY KEY,
-    name VARCHAR(100),
-    deleted_at TIMESTAMP NULL,
-    INDEX idx_deleted (deleted_at)
-);
-
--- Soft delete
-UPDATE users SET deleted_at = NOW() WHERE id = 1;
-
--- Query active users
-SELECT * FROM users WHERE deleted_at IS NULL;
-```
-
-**5. Add audit columns:**
-```sql
-CREATE TABLE users (
-    id INT PRIMARY KEY,
-    name VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    created_by INT REFERENCES users(id),
-    updated_by INT REFERENCES users(id)
-);
-```
-
-**6. Use UUIDs for distributed systems:**
-```sql
-CREATE TABLE users (
-    id BINARY(16) PRIMARY KEY DEFAULT (UUID_TO_BIN(UUID())),
-    name VARCHAR(100)
-);
-
--- No collision across multiple databases
-```
-
----
-
-This comprehensive database guide now covers 30+ interview questions from basic to advanced for mid-level Software Engineer preparation! 🎯
+**End of Database Reference Guide**
