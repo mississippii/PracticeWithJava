@@ -1,5 +1,57 @@
 # Java - Complete Reference Guide
 
+## 📚 Table of Contents
+
+### Fundamentals
+1. [What is Java?](#what-is-java)
+2. [Core Java Components](#core-java-components) - JDK, JRE, JVM, JIT, Class Loader, Garbage Collector
+3. [JVM Architecture](#jvm-architecture)
+4. [Data Types](#data-types) - Primitives & Wrapper Classes
+5. [Java Types (Reference Types)](#java-types-reference-types) - Class, Interface, Enum, Record
+6. [Access Modifiers](#access-modifiers)
+7. [Keywords in Java](#keywords-in-java) - final, static, this, super, abstract, synchronized, volatile, transient
+
+### Object-Oriented Programming
+8. [Constructors](#constructors) - Types, Chaining
+9. [Object-Oriented Programming (OOP)](#object-oriented-programming-oop) - Encapsulation, Inheritance, Polymorphism, Abstraction
+10. [Inner Classes](#inner-classes) - Member, Static, Local, Anonymous
+11. [Immutable Class](#immutable-class)
+
+### Core Concepts
+12. [Annotations](#annotations) - Built-in & Custom
+13. [Generics & Type System](#generics--type-system) - Wildcards, PECS, Type Erasure
+14. [Collections Framework](#collections-framework-detailed) - List, Set, Map, Queue
+15. [Exception Handling](#exception-handling-detailed) - try-catch, Custom Exceptions
+16. [Concurrency & Multithreading](#concurrency--multithreading) - Threads, Synchronization, Executors
+
+### Java 8+ Features
+17. [Lambda Expressions](#lambda-expressions-detailed)
+18. [Stream API](#stream-api-detailed) - Intermediate & Terminal Operations
+19. [Functional Programming](#functional-programming)
+
+### I/O & Data
+20. [String Handling](#string-handling-detailed) - String, StringBuilder, StringBuffer
+21. [I/O & Networking](#io--networking) - File I/O, NIO, Sockets, HttpClient
+22. [Serialization](#serialization)
+23. [JDBC (Database Connectivity)](#jdbc-database-connectivity)
+
+### Advanced Topics
+24. [Reflection & Metaprogramming](#reflection--metaprogramming)
+25. [Modern Java Features (Java 9-21+)](#modern-java-features-java-9-21) - Records, Virtual Threads, Pattern Matching
+26. [JVM Internals](#jvm-internals)
+
+### Software Engineering
+27. [Design Patterns](#design-patterns) - Creational, Structural, Behavioral
+28. [Testing](#testing) - JUnit 5, Mockito
+29. [Security](#security) - Encryption, SQL Injection Prevention
+30. [Build & Tooling](#build--tooling) - Maven, Gradle
+31. [Frameworks & Libraries](#frameworks--libraries) - Spring, Hibernate
+
+### Interview Preparation
+32. [Interview Questions](#interview-questions-with-answers) - 36+ Questions with Detailed Answers
+
+---
+
 ## What is Java?
 
 **Definition:** Java is a high-level, object-oriented, platform-independent programming language used to build reliable and scalable applications. It runs on the Java Virtual Machine (JVM), supports strong OOP concepts, multithreading, and has a rich ecosystem of libraries and frameworks.
@@ -246,16 +298,638 @@ Members with default access are only accessible within the same package.
 
 ---
 
+## Keywords in Java
+
+### final Keyword
+**Purpose:** Restricts modification of variables, methods, and classes.
+
+```java
+// Final variable - cannot be reassigned
+final int MAX_VALUE = 100;
+
+// Final method - cannot be overridden
+class Parent {
+    final void display() {
+        System.out.println("Cannot override this");
+    }
+}
+
+// Final class - cannot be inherited
+final class ImmutableClass {
+    // No subclasses allowed
+}
+```
+
+### static Keyword
+**Purpose:** Belongs to class rather than instance. Shared across all objects.
+
+```java
+class Counter {
+    static int count = 0;  // Shared by all instances
+    
+    static void increment() {  // Called without object
+        count++;
+    }
+    
+    static {  // Static block - runs once when class loads
+        System.out.println("Class loaded");
+    }
+}
+
+// Usage
+Counter.increment();  // No object needed
+System.out.println(Counter.count);
+```
+
+### this Keyword
+**Purpose:** Refers to current object instance.
+
+```java
+class Person {
+    String name;
+    
+    Person(String name) {
+        this.name = name;  // Distinguish field from parameter
+    }
+    
+    void display() {
+        System.out.println(this.name);  // Current object's name
+    }
+    
+    Person getSelf() {
+        return this;  // Return current object
+    }
+}
+```
+
+### super Keyword
+**Purpose:** Refers to parent class. Access parent's members and constructors.
+
+```java
+class Animal {
+    String name = "Animal";
+    
+    void sound() {
+        System.out.println("Some sound");
+    }
+}
+
+class Dog extends Animal {
+    String name = "Dog";
+    
+    void display() {
+        System.out.println(super.name);  // Prints "Animal"
+        System.out.println(this.name);   // Prints "Dog"
+        super.sound();  // Calls parent's method
+    }
+}
+```
+
+### abstract Keyword
+**Purpose:** Declares incomplete classes/methods that must be implemented by subclasses.
+
+```java
+abstract class Shape {
+    abstract double area();  // No body - must be overridden
+    
+    void display() {  // Can have concrete methods too
+        System.out.println("I am a shape");
+    }
+}
+
+class Circle extends Shape {
+    double radius;
+    
+    @Override
+    double area() {
+        return Math.PI * radius * radius;
+    }
+}
+```
+
+### synchronized Keyword
+**Purpose:** Thread safety. Only one thread can access at a time.
+
+```java
+class Counter {
+    private int count = 0;
+    
+    synchronized void increment() {  // Thread-safe
+        count++;
+    }
+    
+    void process() {
+        synchronized(this) {  // Synchronized block
+            // Critical section
+        }
+    }
+}
+```
+
+### volatile Keyword
+**Purpose:** Ensures visibility of changes across threads. No caching.
+
+```java
+class SharedData {
+    volatile boolean flag = false;  // Always read from main memory
+    
+    void writer() {
+        flag = true;  // Visible to all threads immediately
+    }
+    
+    void reader() {
+        while (!flag) {  // Will see updated value
+            // Wait
+        }
+    }
+}
+```
+
+### transient Keyword
+**Purpose:** Exclude field from serialization.
+
+```java
+class User implements Serializable {
+    String username;
+    transient String password;  // Won't be serialized
+}
+```
+
+### instanceof Keyword
+**Purpose:** Check object type at runtime.
+
+```java
+Object obj = "Hello";
+
+if (obj instanceof String) {
+    String str = (String) obj;
+    System.out.println(str.length());
+}
+
+// Pattern matching (Java 16+)
+if (obj instanceof String str) {
+    System.out.println(str.length());
+}
+```
+
+---
+
+## Constructors
+
+### What is a Constructor?
+A special method that initializes objects. Called automatically when object is created.
+
+**Rules:**
+- Same name as class
+- No return type (not even void)
+- Called only once per object creation
+- Can be overloaded
+
+### Types of Constructors
+
+**1. Default Constructor (No-arg)**
+```java
+class Person {
+    String name;
+    
+    // Default constructor
+    Person() {
+        name = "Unknown";
+    }
+}
+
+Person p = new Person();  // Calls default constructor
+```
+
+**2. Parameterized Constructor**
+```java
+class Person {
+    String name;
+    int age;
+    
+    // Parameterized constructor
+    Person(String name, int age) {
+        this.name = name;
+        this.age = age;
+    }
+}
+
+Person p = new Person("John", 25);
+```
+
+**3. Copy Constructor**
+```java
+class Person {
+    String name;
+    int age;
+    
+    // Copy constructor
+    Person(Person other) {
+        this.name = other.name;
+        this.age = other.age;
+    }
+}
+
+Person p1 = new Person("John", 25);
+Person p2 = new Person(p1);  // Copy of p1
+```
+
+### Constructor Chaining
+Calling one constructor from another using `this()` or `super()`.
+
+```java
+class Person {
+    String name;
+    int age;
+    String city;
+    
+    Person() {
+        this("Unknown");  // Calls Person(String)
+    }
+    
+    Person(String name) {
+        this(name, 0);  // Calls Person(String, int)
+    }
+    
+    Person(String name, int age) {
+        this(name, age, "Unknown");  // Calls Person(String, int, String)
+    }
+    
+    Person(String name, int age, String city) {
+        this.name = name;
+        this.age = age;
+        this.city = city;
+    }
+}
+```
+
+### Constructor vs Method
+
+| Constructor | Method |
+|-------------|--------|
+| Same name as class | Any name |
+| No return type | Has return type |
+| Called automatically | Called explicitly |
+| Used to initialize | Used for operations |
+| Cannot be inherited | Can be inherited |
+
+---
+
 ## Object-Oriented Programming (OOP)
 
 **Definition:** Object-Oriented Programming (OOP) is a programming approach that organizes code using objects which combine data and behavior. It helps build secure, reusable, and maintainable software through encapsulation, inheritance, polymorphism, and abstraction.
 
-### Four Pillars of OOP:
+### Four Pillars of OOP
 
-1. **Encapsulation** - Data hiding using private fields and public methods
-2. **Inheritance** - Code reusability through parent-child relationships
-3. **Polymorphism** - Many forms (method overloading and overriding)
-4. **Abstraction** - Hiding implementation details
+---
+
+### 1. Encapsulation
+**Definition:** Wrapping data (fields) and code (methods) together as a single unit. Hiding internal details and providing controlled access.
+
+**How to achieve:**
+- Make fields `private`
+- Provide `public` getter/setter methods
+
+```java
+class BankAccount {
+    private double balance;  // Hidden from outside
+    
+    // Controlled access through methods
+    public double getBalance() {
+        return balance;
+    }
+    
+    public void deposit(double amount) {
+        if (amount > 0) {  // Validation
+            balance += amount;
+        }
+    }
+    
+    public void withdraw(double amount) {
+        if (amount > 0 && amount <= balance) {  // Validation
+            balance -= amount;
+        }
+    }
+}
+
+// Usage
+BankAccount account = new BankAccount();
+account.deposit(1000);
+// account.balance = -500;  // ERROR! Cannot access private field
+```
+
+**Benefits:**
+- Data protection
+- Controlled modification
+- Flexibility to change implementation
+- Better maintainability
+
+---
+
+### 2. Inheritance
+**Definition:** Mechanism where one class acquires properties and behaviors of another class. Promotes code reusability.
+
+**Types of Inheritance:**
+
+```java
+// Single Inheritance
+class Animal {
+    void eat() { System.out.println("Eating..."); }
+}
+
+class Dog extends Animal {
+    void bark() { System.out.println("Barking..."); }
+}
+
+// Multilevel Inheritance
+class Animal { }
+class Mammal extends Animal { }
+class Dog extends Mammal { }
+
+// Hierarchical Inheritance
+class Animal { }
+class Dog extends Animal { }
+class Cat extends Animal { }
+```
+
+**Complete Example:**
+```java
+class Vehicle {
+    String brand;
+    int speed;
+    
+    void start() {
+        System.out.println("Vehicle starting");
+    }
+    
+    void stop() {
+        System.out.println("Vehicle stopping");
+    }
+}
+
+class Car extends Vehicle {
+    int doors;
+    
+    void openSunroof() {
+        System.out.println("Sunroof opened");
+    }
+    
+    @Override
+    void start() {
+        System.out.println("Car engine starting with key");
+    }
+}
+
+// Usage
+Car myCar = new Car();
+myCar.brand = "Toyota";  // Inherited from Vehicle
+myCar.doors = 4;         // Own field
+myCar.start();           // Overridden method
+myCar.stop();            // Inherited method
+```
+
+**Note:** Java doesn't support multiple inheritance with classes (to avoid diamond problem). Use interfaces instead.
+
+---
+
+### 3. Polymorphism
+**Definition:** Ability to take many forms. Same method behaves differently based on object type.
+
+**Two Types:**
+
+**a) Compile-time Polymorphism (Method Overloading)**
+Same method name, different parameters. Decided at compile time.
+
+```java
+class Calculator {
+    // Same name, different parameters
+    int add(int a, int b) {
+        return a + b;
+    }
+    
+    int add(int a, int b, int c) {
+        return a + b + c;
+    }
+    
+    double add(double a, double b) {
+        return a + b;
+    }
+}
+
+Calculator calc = new Calculator();
+calc.add(5, 10);        // Calls first method
+calc.add(5, 10, 15);    // Calls second method
+calc.add(5.5, 10.5);    // Calls third method
+```
+
+**b) Runtime Polymorphism (Method Overriding)**
+Subclass provides specific implementation. Decided at runtime.
+
+```java
+class Animal {
+    void sound() {
+        System.out.println("Animal makes sound");
+    }
+}
+
+class Dog extends Animal {
+    @Override
+    void sound() {
+        System.out.println("Dog barks");
+    }
+}
+
+class Cat extends Animal {
+    @Override
+    void sound() {
+        System.out.println("Cat meows");
+    }
+}
+
+// Runtime polymorphism in action
+Animal animal1 = new Dog();  // Parent reference, child object
+Animal animal2 = new Cat();
+
+animal1.sound();  // Output: Dog barks
+animal2.sound();  // Output: Cat meows
+```
+
+**Rules for Overriding:**
+- Method name must be same
+- Parameters must be same
+- Return type must be same (or covariant)
+- Access modifier cannot be more restrictive
+- Cannot override `final`, `static`, or `private` methods
+
+---
+
+### 4. Abstraction
+**Definition:** Hiding implementation details and showing only functionality. Focus on "what" not "how".
+
+**Two ways to achieve:**
+1. **Abstract Class** (0-100% abstraction)
+2. **Interface** (100% abstraction)
+
+**Using Abstract Class:**
+```java
+abstract class Payment {
+    // Abstract method - no implementation
+    abstract void pay(double amount);
+    
+    // Concrete method - has implementation
+    void showBalance() {
+        System.out.println("Checking balance...");
+    }
+}
+
+class CreditCardPayment extends Payment {
+    @Override
+    void pay(double amount) {
+        System.out.println("Paid $" + amount + " using Credit Card");
+    }
+}
+
+class PayPalPayment extends Payment {
+    @Override
+    void pay(double amount) {
+        System.out.println("Paid $" + amount + " using PayPal");
+    }
+}
+
+// Usage
+Payment payment = new CreditCardPayment();
+payment.pay(100);  // User doesn't know HOW it's implemented
+```
+
+**Using Interface:**
+```java
+interface Drawable {
+    void draw();  // Abstract by default
+    
+    default void info() {  // Default method (Java 8+)
+        System.out.println("Drawing shape");
+    }
+}
+
+class Circle implements Drawable {
+    @Override
+    public void draw() {
+        System.out.println("Drawing Circle");
+    }
+}
+
+class Rectangle implements Drawable {
+    @Override
+    public void draw() {
+        System.out.println("Drawing Rectangle");
+    }
+}
+```
+
+**Abstract Class vs Interface:**
+
+| Abstract Class | Interface |
+|----------------|-----------|
+| `extends` keyword | `implements` keyword |
+| Can have constructors | No constructors |
+| Can have instance variables | Only constants (public static final) |
+| Single inheritance | Multiple inheritance |
+| 0-100% abstraction | 100% abstraction (before Java 8) |
+
+---
+
+## Inner Classes
+
+### What are Inner Classes?
+Classes defined inside another class. Provides logical grouping and encapsulation.
+
+### Types of Inner Classes
+
+**1. Member Inner Class (Non-static)**
+```java
+class Outer {
+    private int x = 10;
+    
+    class Inner {
+        void display() {
+            System.out.println("x = " + x);  // Can access outer's private members
+        }
+    }
+}
+
+// Usage
+Outer outer = new Outer();
+Outer.Inner inner = outer.new Inner();
+inner.display();
+```
+
+**2. Static Nested Class**
+```java
+class Outer {
+    static int x = 10;
+    
+    static class Nested {
+        void display() {
+            System.out.println("x = " + x);  // Can only access static members
+        }
+    }
+}
+
+// Usage - no outer instance needed
+Outer.Nested nested = new Outer.Nested();
+nested.display();
+```
+
+**3. Local Inner Class**
+Defined inside a method.
+
+```java
+class Outer {
+    void method() {
+        final int localVar = 100;
+        
+        class LocalInner {
+            void display() {
+                System.out.println("Local var: " + localVar);
+            }
+        }
+        
+        LocalInner inner = new LocalInner();
+        inner.display();
+    }
+}
+```
+
+**4. Anonymous Inner Class**
+Class without name. Used for one-time use.
+
+```java
+interface Greeting {
+    void greet();
+}
+
+class Main {
+    public static void main(String[] args) {
+        // Anonymous class implementing interface
+        Greeting greeting = new Greeting() {
+            @Override
+            public void greet() {
+                System.out.println("Hello!");
+            }
+        };
+        greeting.greet();
+        
+        // Can also be written as lambda (Java 8+)
+        Greeting greeting2 = () -> System.out.println("Hello!");
+    }
+}
+```
+
+**When to Use Inner Classes:**
+- Logically grouping classes used in one place only
+- Increasing encapsulation
+- More readable and maintainable code
+- Implementing callbacks and event handlers
 
 ---
 
@@ -291,6 +965,150 @@ public final class Person {
 - Secure
 - Good for caching
 - Can be used as HashMap keys
+
+---
+
+## Annotations
+
+### What are Annotations?
+Annotations provide metadata about the program. They don't directly affect code execution but can be processed by compiler or runtime.
+
+### Built-in Annotations
+
+**1. @Override**
+```java
+class Animal {
+    void sound() { }
+}
+
+class Dog extends Animal {
+    @Override  // Compiler checks if method actually overrides parent
+    void sound() {
+        System.out.println("Bark!");
+    }
+}
+```
+
+**2. @Deprecated**
+```java
+class OldApi {
+    @Deprecated
+    void oldMethod() { }  // Compiler warning if used
+    
+    @Deprecated(since = "2.0", forRemoval = true)
+    void legacyMethod() { }  // Will be removed in future
+}
+```
+
+**3. @SuppressWarnings**
+```java
+@SuppressWarnings("unchecked")
+void method() {
+    List list = new ArrayList();  // No warning
+}
+
+@SuppressWarnings({"unused", "deprecation"})
+void anotherMethod() { }
+```
+
+**4. @FunctionalInterface**
+```java
+@FunctionalInterface  // Ensures only one abstract method
+interface Calculator {
+    int calculate(int a, int b);
+}
+```
+
+**5. @SafeVarargs**
+```java
+@SafeVarargs  // Suppresses heap pollution warning
+final void process(List<String>... lists) {
+    for (List<String> list : lists) {
+        System.out.println(list);
+    }
+}
+```
+
+### Creating Custom Annotations
+
+```java
+// Define annotation
+@Retention(RetentionPolicy.RUNTIME)  // Available at runtime
+@Target(ElementType.METHOD)          // Can only be applied to methods
+public @interface Test {
+    String value() default "";
+    int priority() default 0;
+}
+
+// Using annotation
+class MyTests {
+    @Test(value = "test addition", priority = 1)
+    void testAddition() {
+        assert 2 + 2 == 4;
+    }
+    
+    @Test("test subtraction")
+    void testSubtraction() {
+        assert 5 - 3 == 2;
+    }
+}
+```
+
+### Meta-Annotations
+
+```java
+@Retention(RetentionPolicy.RUNTIME)  // When annotation is available
+// SOURCE - Discarded by compiler
+// CLASS - In .class file, not runtime (default)
+// RUNTIME - Available via reflection
+
+@Target({ElementType.METHOD, ElementType.TYPE})  // Where can be applied
+// TYPE, METHOD, FIELD, PARAMETER, CONSTRUCTOR, LOCAL_VARIABLE, etc.
+
+@Documented  // Include in Javadoc
+
+@Inherited   // Subclasses inherit annotation
+
+@Repeatable(Tests.class)  // Can be applied multiple times
+```
+
+### Processing Annotations at Runtime
+
+```java
+class TestRunner {
+    public static void runTests(Class<?> clazz) throws Exception {
+        Object instance = clazz.getDeclaredConstructor().newInstance();
+        
+        for (Method method : clazz.getDeclaredMethods()) {
+            if (method.isAnnotationPresent(Test.class)) {
+                Test test = method.getAnnotation(Test.class);
+                System.out.println("Running: " + test.value());
+                method.invoke(instance);
+            }
+        }
+    }
+}
+```
+
+### Common Framework Annotations
+
+```java
+// Spring
+@Component, @Service, @Repository, @Controller
+@Autowired, @Value, @Bean
+@RequestMapping, @GetMapping, @PostMapping
+
+// JPA/Hibernate
+@Entity, @Table, @Column, @Id
+@OneToMany, @ManyToOne, @ManyToMany
+
+// Lombok
+@Data, @Getter, @Setter, @Builder
+@NoArgsConstructor, @AllArgsConstructor
+
+// Validation
+@NotNull, @Size, @Min, @Max, @Email
+```
 
 ---
 
@@ -613,39 +1431,519 @@ Synchronized = Only one chef can use the oven at a time
 
 ## Generics & Type System
 
-### Key Concepts:
-- **Bounded type parameters** - `<T extends Number>`
-- **Wildcards** - `<?>`, `<? extends T>`, `<? super T>`
-- **PECS principle** - Producer Extends, Consumer Super
-- **Type erasure** - Generics removed at runtime
-- **Generic methods & classes**
-- **Recursive type bounds** - `<T extends Comparable<T>>`
+### What are Generics?
+Generics enable types (classes and interfaces) to be parameters when defining classes, interfaces, and methods. They provide compile-time type safety.
+
+### Why Use Generics?
+
+**Without Generics (Before Java 5):**
+```java
+List list = new ArrayList();
+list.add("Hello");
+list.add(123);  // No compile error, but dangerous!
+
+String str = (String) list.get(1);  // Runtime ClassCastException!
+```
+
+**With Generics:**
+```java
+List<String> list = new ArrayList<>();
+list.add("Hello");
+// list.add(123);  // Compile error! Type safety
+
+String str = list.get(0);  // No casting needed
+```
+
+### Generic Class
+
+```java
+// Generic class with type parameter T
+class Box<T> {
+    private T item;
+    
+    public void setItem(T item) {
+        this.item = item;
+    }
+    
+    public T getItem() {
+        return item;
+    }
+}
+
+// Usage
+Box<String> stringBox = new Box<>();
+stringBox.setItem("Hello");
+String s = stringBox.getItem();
+
+Box<Integer> intBox = new Box<>();
+intBox.setItem(100);
+Integer i = intBox.getItem();
+```
+
+### Generic Method
+
+```java
+class Utility {
+    // Generic method
+    public static <T> void printArray(T[] array) {
+        for (T element : array) {
+            System.out.println(element);
+        }
+    }
+    
+    // Generic method with return type
+    public static <T> T getFirst(List<T> list) {
+        return list.isEmpty() ? null : list.get(0);
+    }
+}
+
+// Usage
+String[] names = {"Alice", "Bob"};
+Utility.printArray(names);
+
+Integer[] numbers = {1, 2, 3};
+Utility.printArray(numbers);
+```
+
+### Bounded Type Parameters
+
+**Upper Bound (extends):**
+```java
+// T must be Number or its subclass
+class Calculator<T extends Number> {
+    private T value;
+    
+    public double square() {
+        return value.doubleValue() * value.doubleValue();
+    }
+}
+
+Calculator<Integer> intCalc = new Calculator<>();
+Calculator<Double> doubleCalc = new Calculator<>();
+// Calculator<String> strCalc;  // Compile error!
+```
+
+**Multiple Bounds:**
+```java
+// T must extend Number AND implement Comparable
+class SortableNumber<T extends Number & Comparable<T>> {
+    private T value;
+    
+    public int compareTo(T other) {
+        return value.compareTo(other);
+    }
+}
+```
+
+### Wildcards
+
+**1. Unbounded Wildcard (`?`):**
+```java
+// Accepts any type
+public void printList(List<?> list) {
+    for (Object item : list) {
+        System.out.println(item);
+    }
+}
+
+printList(Arrays.asList("a", "b"));
+printList(Arrays.asList(1, 2, 3));
+```
+
+**2. Upper Bounded Wildcard (`? extends T`):**
+```java
+// Accepts Number or any subclass (Integer, Double, etc.)
+public double sum(List<? extends Number> list) {
+    double total = 0;
+    for (Number num : list) {
+        total += num.doubleValue();
+    }
+    return total;
+}
+
+sum(Arrays.asList(1, 2, 3));         // List<Integer>
+sum(Arrays.asList(1.5, 2.5, 3.5));   // List<Double>
+```
+
+**3. Lower Bounded Wildcard (`? super T`):**
+```java
+// Accepts Integer or any superclass (Number, Object)
+public void addNumbers(List<? super Integer> list) {
+    list.add(1);
+    list.add(2);
+    list.add(3);
+}
+
+List<Integer> intList = new ArrayList<>();
+List<Number> numList = new ArrayList<>();
+List<Object> objList = new ArrayList<>();
+
+addNumbers(intList);
+addNumbers(numList);
+addNumbers(objList);
+```
+
+### PECS Principle
+**Producer Extends, Consumer Super**
+
+```java
+// Producer (read from) - use extends
+public void copy(List<? extends Number> source, List<? super Number> dest) {
+    for (Number num : source) {  // Reading from source (Producer)
+        dest.add(num);           // Writing to dest (Consumer)
+    }
+}
+```
+
+- Use `extends` when you only GET values (Producer)
+- Use `super` when you only PUT values (Consumer)
+
+### Type Erasure
+Generics exist only at compile time. At runtime, type information is removed.
+
+```java
+// At compile time
+List<String> list1 = new ArrayList<>();
+List<Integer> list2 = new ArrayList<>();
+
+// At runtime (after type erasure)
+// Both become: List list = new ArrayList();
+
+// This is why you cannot:
+// - Create generic arrays: new T[]
+// - Use instanceof with generics: obj instanceof List<String>
+// - Create instances of type parameters: new T()
+```
+
+### Recursive Type Bound
+
+```java
+// T must be comparable to itself
+class ComparableBox<T extends Comparable<T>> {
+    private T value;
+    
+    public boolean isGreaterThan(T other) {
+        return value.compareTo(other) > 0;
+    }
+}
+```
 
 ---
 
 ## Reflection & Metaprogramming
 
-### Capabilities:
-- **Class introspection** - Examine classes at runtime
-- **Dynamic proxy** - Create proxy instances
-- **Method handles** - Direct method references
-- **Annotation processing** - Process annotations at compile-time
-- **Bytecode manipulation** - ASM, ByteBuddy, Javassist
+### What is Reflection?
+Reflection allows examining and modifying class behavior at runtime. You can inspect classes, interfaces, fields, and methods without knowing their names at compile time.
+
+### Getting Class Information
+
+```java
+// Three ways to get Class object
+Class<?> clazz1 = String.class;
+Class<?> clazz2 = "Hello".getClass();
+Class<?> clazz3 = Class.forName("java.lang.String");
+
+// Get class information
+System.out.println("Name: " + clazz1.getName());
+System.out.println("Simple Name: " + clazz1.getSimpleName());
+System.out.println("Package: " + clazz1.getPackage());
+System.out.println("Superclass: " + clazz1.getSuperclass());
+System.out.println("Interfaces: " + Arrays.toString(clazz1.getInterfaces()));
+```
+
+### Accessing Fields
+
+```java
+class Person {
+    private String name = "John";
+    public int age = 25;
+}
+
+// Access fields using reflection
+Person person = new Person();
+Class<?> clazz = person.getClass();
+
+// Get all fields (including private)
+Field[] fields = clazz.getDeclaredFields();
+for (Field field : fields) {
+    field.setAccessible(true);  // Access private fields
+    System.out.println(field.getName() + " = " + field.get(person));
+}
+
+// Modify private field
+Field nameField = clazz.getDeclaredField("name");
+nameField.setAccessible(true);
+nameField.set(person, "Jane");
+```
+
+### Invoking Methods
+
+```java
+class Calculator {
+    public int add(int a, int b) {
+        return a + b;
+    }
+    
+    private void secretMethod() {
+        System.out.println("Secret!");
+    }
+}
+
+Calculator calc = new Calculator();
+Class<?> clazz = calc.getClass();
+
+// Invoke public method
+Method addMethod = clazz.getMethod("add", int.class, int.class);
+int result = (int) addMethod.invoke(calc, 5, 3);  // Returns 8
+
+// Invoke private method
+Method secretMethod = clazz.getDeclaredMethod("secretMethod");
+secretMethod.setAccessible(true);
+secretMethod.invoke(calc);
+```
+
+### Creating Objects Dynamically
+
+```java
+// Using Class.newInstance() - deprecated in Java 9
+Class<?> clazz = Class.forName("java.lang.String");
+Object obj = clazz.getDeclaredConstructor().newInstance();
+
+// Using Constructor
+Constructor<?> constructor = clazz.getConstructor(String.class);
+String str = (String) constructor.newInstance("Hello");
+```
+
+### Checking Annotations
+
+```java
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+@interface MyAnnotation {
+    String value();
+}
+
+class MyClass {
+    @MyAnnotation("test")
+    public void myMethod() { }
+}
+
+// Check annotations
+Method method = MyClass.class.getMethod("myMethod");
+if (method.isAnnotationPresent(MyAnnotation.class)) {
+    MyAnnotation annotation = method.getAnnotation(MyAnnotation.class);
+    System.out.println(annotation.value());  // Prints "test"
+}
+```
+
+### Use Cases for Reflection
+- Framework development (Spring, Hibernate)
+- Testing frameworks (JUnit)
+- Serialization/Deserialization
+- Dynamic proxy creation
+- IDE features (code completion)
+
+### Caution
+- **Performance:** Reflection is slower than direct code
+- **Security:** Can bypass access modifiers
+- **Maintenance:** Breaks at runtime if class structure changes
 
 ---
 
 ## Modern Java Features (Java 9-21+)
 
-### Java 9+:
-- **Modules (JPMS)** - Java Platform Module System
-- **JShell** - Interactive REPL
+### Java 9+ Features
 
-### Java 10+:
-- **Local variable type inference (var)** - Type inference for local variables
+**1. Modules (JPMS):**
+```java
+// module-info.java
+module com.myapp {
+    requires java.base;
+    requires java.sql;
+    exports com.myapp.api;
+}
+```
 
-### Java 14+:
-- **Records** - Immutable data carriers
-- **Text blocks** - Multi-line strings
+**2. JShell (Interactive REPL):**
+```bash
+$ jshell
+jshell> int x = 10
+x ==> 10
+jshell> System.out.println(x * 2)
+20
+```
+
+**3. Factory Methods for Collections:**
+```java
+List<String> list = List.of("a", "b", "c");        // Immutable
+Set<Integer> set = Set.of(1, 2, 3);                // Immutable
+Map<String, Integer> map = Map.of("a", 1, "b", 2); // Immutable
+```
+
+**4. Private Methods in Interfaces:**
+```java
+interface MyInterface {
+    default void publicMethod() {
+        privateHelper();
+    }
+    
+    private void privateHelper() {
+        System.out.println("Helper");
+    }
+}
+```
+
+### Java 10+ Features
+
+**1. Local Variable Type Inference (var):**
+```java
+var list = new ArrayList<String>();  // Compiler infers type
+var stream = list.stream();
+var map = new HashMap<String, Integer>();
+
+// Works only for local variables with initializers
+// var x;  // Error! Cannot infer type
+```
+
+### Java 11+ Features
+
+**1. String Methods:**
+```java
+"  hello  ".strip();          // "hello" (Unicode-aware trim)
+"  hello  ".stripLeading();   // "hello  "
+"  hello  ".stripTrailing();  // "  hello"
+"".isBlank();                 // true
+"hello\nworld".lines();       // Stream of lines
+"ab".repeat(3);               // "ababab"
+```
+
+**2. HttpClient (Standard):**
+```java
+HttpClient client = HttpClient.newHttpClient();
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("https://api.example.com"))
+    .GET()
+    .build();
+    
+HttpResponse<String> response = client.send(request, 
+    HttpResponse.BodyHandlers.ofString());
+System.out.println(response.body());
+```
+
+### Java 14+ Features
+
+**1. Records (Immutable Data Classes):**
+```java
+// Before records
+class PersonOld {
+    private final String name;
+    private final int age;
+    // Constructor, getters, equals, hashCode, toString...
+}
+
+// With records
+record Person(String name, int age) { }
+
+// Usage
+Person p = new Person("John", 25);
+System.out.println(p.name());  // "John"
+System.out.println(p.age());   // 25
+System.out.println(p);         // Person[name=John, age=25]
+```
+
+**2. Text Blocks (Multi-line Strings):**
+```java
+String json = """
+    {
+        "name": "John",
+        "age": 25
+    }
+    """;
+
+String sql = """
+    SELECT *
+    FROM users
+    WHERE status = 'active'
+    """;
+```
+
+**3. Pattern Matching for instanceof:**
+```java
+// Before
+if (obj instanceof String) {
+    String s = (String) obj;
+    System.out.println(s.length());
+}
+
+// After (Java 14+)
+if (obj instanceof String s) {
+    System.out.println(s.length());  // s is already cast
+}
+```
+
+### Java 17+ Features
+
+**1. Sealed Classes:**
+```java
+// Restrict which classes can extend
+sealed class Shape permits Circle, Rectangle, Triangle { }
+
+final class Circle extends Shape { }
+final class Rectangle extends Shape { }
+non-sealed class Triangle extends Shape { }  // Open for extension
+```
+
+**2. Pattern Matching for switch (Preview):**
+```java
+Object obj = "Hello";
+String result = switch (obj) {
+    case Integer i -> "Integer: " + i;
+    case String s -> "String: " + s;
+    case null -> "Null value";
+    default -> "Unknown";
+};
+```
+
+### Java 21+ Features
+
+**1. Virtual Threads (Project Loom):**
+```java
+// Traditional threads (expensive)
+Thread thread = new Thread(() -> doWork());
+
+// Virtual threads (lightweight)
+Thread.startVirtualThread(() -> doWork());
+
+// Using ExecutorService
+try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+    for (int i = 0; i < 10_000; i++) {
+        executor.submit(() -> doWork());  // 10,000 virtual threads!
+    }
+}
+```
+
+**2. Sequenced Collections:**
+```java
+SequencedCollection<String> list = new ArrayList<>();
+list.addFirst("a");  // Add at beginning
+list.addLast("z");   // Add at end
+list.getFirst();     // Get first element
+list.getLast();      // Get last element
+list.reversed();     // Reversed view
+```
+
+**3. Record Patterns:**
+```java
+record Point(int x, int y) { }
+
+void printPoint(Object obj) {
+    if (obj instanceof Point(int x, int y)) {
+        System.out.println("x=" + x + ", y=" + y);
+    }
+}
+```
+
+---
 - **Pattern matching for instanceof**
 
 ### Java 17+:
@@ -670,17 +1968,406 @@ Synchronized = Only one chef can use the oven at a time
 
 ## I/O & Networking
 
-### I/O:
-- **NIO & NIO.2** - New I/O API
-- **Channels** - Bidirectional communication
-- **Buffers** - Data containers
-- **Selectors** - Multiplexed I/O
-- **Async I/O** - Non-blocking I/O
-- **Memory-mapped files** - File as memory
+### Traditional I/O (java.io)
 
-### Networking:
-- **Socket programming** - TCP/UDP communication
-- **HttpClient** - Modern HTTP client (Java 11+)
+**Reading Files:**
+```java
+// Using BufferedReader
+try (BufferedReader reader = new BufferedReader(new FileReader("file.txt"))) {
+    String line;
+    while ((line = reader.readLine()) != null) {
+        System.out.println(line);
+    }
+}
+
+// Using Scanner
+try (Scanner scanner = new Scanner(new File("file.txt"))) {
+    while (scanner.hasNextLine()) {
+        System.out.println(scanner.nextLine());
+    }
+}
+```
+
+**Writing Files:**
+```java
+// Using BufferedWriter
+try (BufferedWriter writer = new BufferedWriter(new FileWriter("file.txt"))) {
+    writer.write("Hello World");
+    writer.newLine();
+    writer.write("Second line");
+}
+
+// Using PrintWriter
+try (PrintWriter writer = new PrintWriter("file.txt")) {
+    writer.println("Hello World");
+    writer.printf("Number: %d%n", 42);
+}
+```
+
+### NIO (java.nio) - New I/O
+
+**Files Class (Java 7+):**
+```java
+// Read entire file
+String content = Files.readString(Path.of("file.txt"));
+List<String> lines = Files.readAllLines(Path.of("file.txt"));
+byte[] bytes = Files.readAllBytes(Path.of("file.txt"));
+
+// Write to file
+Files.writeString(Path.of("file.txt"), "Hello World");
+Files.write(Path.of("file.txt"), lines);
+
+// Copy, move, delete
+Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+Files.move(source, target);
+Files.delete(Path.of("file.txt"));
+
+// Check file properties
+Files.exists(path);
+Files.isDirectory(path);
+Files.size(path);
+Files.getLastModifiedTime(path);
+```
+
+**Walking Directory Tree:**
+```java
+// List files in directory
+try (Stream<Path> files = Files.list(Path.of("."))) {
+    files.forEach(System.out::println);
+}
+
+// Walk entire tree
+try (Stream<Path> paths = Files.walk(Path.of("."))) {
+    paths.filter(Files::isRegularFile)
+         .filter(p -> p.toString().endsWith(".java"))
+         .forEach(System.out::println);
+}
+
+// Find files matching pattern
+try (Stream<Path> paths = Files.find(Path.of("."), 10,
+        (path, attr) -> path.toString().endsWith(".java"))) {
+    paths.forEach(System.out::println);
+}
+```
+
+**Channels and Buffers:**
+```java
+// Reading with Channel
+try (FileChannel channel = FileChannel.open(Path.of("file.txt"))) {
+    ByteBuffer buffer = ByteBuffer.allocate(1024);
+    while (channel.read(buffer) > 0) {
+        buffer.flip();  // Switch to read mode
+        while (buffer.hasRemaining()) {
+            System.out.print((char) buffer.get());
+        }
+        buffer.clear();  // Clear for next read
+    }
+}
+
+// Writing with Channel
+try (FileChannel channel = FileChannel.open(Path.of("file.txt"),
+        StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+    ByteBuffer buffer = ByteBuffer.wrap("Hello".getBytes());
+    channel.write(buffer);
+}
+```
+
+### Networking
+
+**Socket Programming (TCP):**
+```java
+// Server
+try (ServerSocket server = new ServerSocket(8080)) {
+    System.out.println("Server started on port 8080");
+    Socket client = server.accept();  // Wait for client
+    
+    BufferedReader in = new BufferedReader(
+        new InputStreamReader(client.getInputStream()));
+    PrintWriter out = new PrintWriter(client.getOutputStream(), true);
+    
+    String message = in.readLine();
+    System.out.println("Received: " + message);
+    out.println("Echo: " + message);
+}
+
+// Client
+try (Socket socket = new Socket("localhost", 8080)) {
+    PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+    BufferedReader in = new BufferedReader(
+        new InputStreamReader(socket.getInputStream()));
+    
+    out.println("Hello Server!");
+    String response = in.readLine();
+    System.out.println("Server: " + response);
+}
+```
+
+**HttpClient (Java 11+):**
+```java
+HttpClient client = HttpClient.newHttpClient();
+
+// GET request
+HttpRequest getRequest = HttpRequest.newBuilder()
+    .uri(URI.create("https://api.example.com/users"))
+    .GET()
+    .build();
+
+HttpResponse<String> response = client.send(getRequest,
+    HttpResponse.BodyHandlers.ofString());
+System.out.println(response.body());
+
+// POST request
+HttpRequest postRequest = HttpRequest.newBuilder()
+    .uri(URI.create("https://api.example.com/users"))
+    .header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString(
+        "{\"name\":\"John\",\"age\":25}"))
+    .build();
+
+// Async request
+client.sendAsync(getRequest, HttpResponse.BodyHandlers.ofString())
+    .thenApply(HttpResponse::body)
+    .thenAccept(System.out::println);
+```
+
+---
+
+## Serialization
+
+### What is Serialization?
+Converting object state to byte stream (for storage or transmission) and reconstructing it back.
+
+### Basic Serialization
+
+```java
+// Class must implement Serializable
+class Person implements Serializable {
+    private static final long serialVersionUID = 1L;  // Version control
+    
+    private String name;
+    private int age;
+    private transient String password;  // Won't be serialized
+    
+    // Constructor, getters, setters...
+}
+
+// Serialization (Object to bytes)
+Person person = new Person("John", 25);
+try (ObjectOutputStream oos = new ObjectOutputStream(
+        new FileOutputStream("person.ser"))) {
+    oos.writeObject(person);
+}
+
+// Deserialization (Bytes to object)
+try (ObjectInputStream ois = new ObjectInputStream(
+        new FileInputStream("person.ser"))) {
+    Person loaded = (Person) ois.readObject();
+    System.out.println(loaded.getName());  // "John"
+}
+```
+
+### serialVersionUID
+Unique identifier for class version. If not specified, JVM generates one based on class structure.
+
+```java
+// Always define explicitly!
+private static final long serialVersionUID = 1L;
+
+// If class structure changes without updating serialVersionUID:
+// InvalidClassException during deserialization
+```
+
+### Custom Serialization
+
+```java
+class CustomPerson implements Serializable {
+    private String name;
+    private int age;
+    
+    // Custom serialization
+    private void writeObject(ObjectOutputStream oos) throws IOException {
+        oos.defaultWriteObject();  // Default serialization
+        oos.writeObject(encrypt(name));  // Custom logic
+    }
+    
+    // Custom deserialization
+    private void readObject(ObjectInputStream ois) 
+            throws IOException, ClassNotFoundException {
+        ois.defaultReadObject();
+        this.name = decrypt((String) ois.readObject());
+    }
+}
+```
+
+### Externalizable Interface
+Full control over serialization.
+
+```java
+class ExternalizablePerson implements Externalizable {
+    private String name;
+    private int age;
+    
+    public ExternalizablePerson() { }  // Required no-arg constructor
+    
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+        out.writeUTF(name);
+        out.writeInt(age);
+    }
+    
+    @Override
+    public void readExternal(ObjectInput in) throws IOException {
+        name = in.readUTF();
+        age = in.readInt();
+    }
+}
+```
+
+### Serialization Best Practices
+1. Always define `serialVersionUID`
+2. Use `transient` for sensitive/non-serializable fields
+3. Consider using JSON/XML instead for interoperability
+4. Be careful with inheritance (parent must be serializable or have no-arg constructor)
+
+---
+
+## JDBC (Database Connectivity)
+
+### What is JDBC?
+Java Database Connectivity - API for connecting Java applications to databases.
+
+### Basic JDBC Steps
+
+```java
+// 1. Load driver (optional in modern JDBC)
+Class.forName("com.mysql.cj.jdbc.Driver");
+
+// 2. Establish connection
+String url = "jdbc:mysql://localhost:3306/mydb";
+String user = "root";
+String password = "password";
+
+try (Connection conn = DriverManager.getConnection(url, user, password)) {
+    // 3. Create statement
+    // 4. Execute query
+    // 5. Process results
+}
+```
+
+### Statement vs PreparedStatement
+
+**Statement (Simple queries):**
+```java
+try (Connection conn = DriverManager.getConnection(url, user, password);
+     Statement stmt = conn.createStatement()) {
+    
+    // SELECT
+    ResultSet rs = stmt.executeQuery("SELECT * FROM users");
+    while (rs.next()) {
+        System.out.println(rs.getInt("id") + ": " + rs.getString("name"));
+    }
+    
+    // INSERT, UPDATE, DELETE
+    int rows = stmt.executeUpdate("INSERT INTO users (name) VALUES ('John')");
+    System.out.println(rows + " row(s) affected");
+}
+```
+
+**PreparedStatement (Parameterized - prevents SQL injection):**
+```java
+String sql = "SELECT * FROM users WHERE name = ? AND age > ?";
+
+try (Connection conn = DriverManager.getConnection(url, user, password);
+     PreparedStatement pstmt = conn.prepareStatement(sql)) {
+    
+    pstmt.setString(1, "John");  // Set first parameter
+    pstmt.setInt(2, 18);         // Set second parameter
+    
+    ResultSet rs = pstmt.executeQuery();
+    while (rs.next()) {
+        System.out.println(rs.getString("name"));
+    }
+}
+
+// INSERT with PreparedStatement
+String insertSql = "INSERT INTO users (name, age) VALUES (?, ?)";
+try (PreparedStatement pstmt = conn.prepareStatement(insertSql)) {
+    pstmt.setString(1, "Jane");
+    pstmt.setInt(2, 25);
+    pstmt.executeUpdate();
+}
+```
+
+### Batch Processing
+
+```java
+try (Connection conn = DriverManager.getConnection(url, user, password);
+     PreparedStatement pstmt = conn.prepareStatement(
+         "INSERT INTO users (name, age) VALUES (?, ?)")) {
+    
+    conn.setAutoCommit(false);  // Disable auto-commit
+    
+    for (User user : users) {
+        pstmt.setString(1, user.getName());
+        pstmt.setInt(2, user.getAge());
+        pstmt.addBatch();
+    }
+    
+    int[] results = pstmt.executeBatch();
+    conn.commit();  // Commit all at once
+}
+```
+
+### Transaction Management
+
+```java
+Connection conn = null;
+try {
+    conn = DriverManager.getConnection(url, user, password);
+    conn.setAutoCommit(false);  // Start transaction
+    
+    // Multiple operations
+    stmt1.executeUpdate("UPDATE accounts SET balance = balance - 100 WHERE id = 1");
+    stmt2.executeUpdate("UPDATE accounts SET balance = balance + 100 WHERE id = 2");
+    
+    conn.commit();  // Success - commit all changes
+    
+} catch (SQLException e) {
+    if (conn != null) {
+        conn.rollback();  // Error - rollback all changes
+    }
+} finally {
+    if (conn != null) {
+        conn.setAutoCommit(true);
+        conn.close();
+    }
+}
+```
+
+### Connection Pooling (HikariCP)
+
+```java
+// Using HikariCP (fastest connection pool)
+HikariConfig config = new HikariConfig();
+config.setJdbcUrl("jdbc:mysql://localhost:3306/mydb");
+config.setUsername("root");
+config.setPassword("password");
+config.setMaximumPoolSize(10);
+
+HikariDataSource dataSource = new HikariDataSource(config);
+
+// Get connection from pool
+try (Connection conn = dataSource.getConnection()) {
+    // Use connection
+}  // Connection returned to pool, not closed
+```
+
+### JDBC Best Practices
+1. Always use `PreparedStatement` to prevent SQL injection
+2. Use try-with-resources for auto-closing
+3. Use connection pooling in production
+4. Handle transactions properly
+5. Don't store credentials in code (use environment variables)
 
 ---
 
@@ -696,58 +2383,771 @@ Synchronized = Only one chef can use the oven at a time
 
 ## Design Patterns
 
-### Creational:
-- **Builder** - Complex object construction
-- **Factory** - Object creation without exposing logic
-- **Singleton** - Single instance
+Design patterns are proven solutions to common software design problems.
 
-### Structural:
-- **Adapter** - Interface compatibility
-- **Decorator** - Add behavior dynamically
-- **Proxy** - Control access
+### Creational Patterns
 
-### Behavioral:
-- **Strategy** - Interchangeable algorithms
-- **Observer** - Event notification
-- **Command** - Encapsulate requests
+**1. Singleton - Single Instance**
+Ensures only one instance exists throughout the application.
 
-### Concurrency Patterns:
-- **Producer-Consumer**
-- **Thread Pool**
-- **Future Pattern**
+```java
+// Thread-safe Singleton using enum (recommended)
+enum DatabaseConnection {
+    INSTANCE;
+    
+    public void connect() {
+        System.out.println("Connected to database");
+    }
+}
+
+// Usage
+DatabaseConnection.INSTANCE.connect();
+
+// Double-checked locking Singleton
+class Singleton {
+    private static volatile Singleton instance;
+    
+    private Singleton() { }
+    
+    public static Singleton getInstance() {
+        if (instance == null) {
+            synchronized (Singleton.class) {
+                if (instance == null) {
+                    instance = new Singleton();
+                }
+            }
+        }
+        return instance;
+    }
+}
+```
+
+**2. Factory - Object Creation**
+Creates objects without exposing creation logic.
+
+```java
+interface Animal {
+    void speak();
+}
+
+class Dog implements Animal {
+    public void speak() { System.out.println("Woof!"); }
+}
+
+class Cat implements Animal {
+    public void speak() { System.out.println("Meow!"); }
+}
+
+// Factory
+class AnimalFactory {
+    public static Animal createAnimal(String type) {
+        return switch (type.toLowerCase()) {
+            case "dog" -> new Dog();
+            case "cat" -> new Cat();
+            default -> throw new IllegalArgumentException("Unknown animal");
+        };
+    }
+}
+
+// Usage
+Animal animal = AnimalFactory.createAnimal("dog");
+animal.speak();  // Woof!
+```
+
+**3. Builder - Complex Object Construction**
+Constructs complex objects step by step.
+
+```java
+class Pizza {
+    private final String size;
+    private final boolean cheese;
+    private final boolean pepperoni;
+    private final boolean mushrooms;
+    
+    private Pizza(Builder builder) {
+        this.size = builder.size;
+        this.cheese = builder.cheese;
+        this.pepperoni = builder.pepperoni;
+        this.mushrooms = builder.mushrooms;
+    }
+    
+    public static class Builder {
+        private final String size;  // Required
+        private boolean cheese = false;
+        private boolean pepperoni = false;
+        private boolean mushrooms = false;
+        
+        public Builder(String size) {
+            this.size = size;
+        }
+        
+        public Builder cheese() { cheese = true; return this; }
+        public Builder pepperoni() { pepperoni = true; return this; }
+        public Builder mushrooms() { mushrooms = true; return this; }
+        
+        public Pizza build() { return new Pizza(this); }
+    }
+}
+
+// Usage - fluent API
+Pizza pizza = new Pizza.Builder("Large")
+    .cheese()
+    .pepperoni()
+    .build();
+```
+
+### Structural Patterns
+
+**1. Adapter - Interface Compatibility**
+Allows incompatible interfaces to work together.
+
+```java
+// Old interface
+interface OldPrinter {
+    void printOld(String text);
+}
+
+// New interface we want to use
+interface NewPrinter {
+    void print(String text);
+}
+
+// Adapter
+class PrinterAdapter implements NewPrinter {
+    private final OldPrinter oldPrinter;
+    
+    public PrinterAdapter(OldPrinter oldPrinter) {
+        this.oldPrinter = oldPrinter;
+    }
+    
+    @Override
+    public void print(String text) {
+        oldPrinter.printOld(text);  // Adapt old method to new
+    }
+}
+```
+
+**2. Decorator - Add Behavior Dynamically**
+Adds functionality to objects without modifying their structure.
+
+```java
+interface Coffee {
+    double getCost();
+    String getDescription();
+}
+
+class SimpleCoffee implements Coffee {
+    public double getCost() { return 2.0; }
+    public String getDescription() { return "Simple coffee"; }
+}
+
+// Decorator
+abstract class CoffeeDecorator implements Coffee {
+    protected Coffee coffee;
+    
+    public CoffeeDecorator(Coffee coffee) {
+        this.coffee = coffee;
+    }
+}
+
+class MilkDecorator extends CoffeeDecorator {
+    public MilkDecorator(Coffee coffee) { super(coffee); }
+    
+    public double getCost() { return coffee.getCost() + 0.5; }
+    public String getDescription() { return coffee.getDescription() + ", milk"; }
+}
+
+class SugarDecorator extends CoffeeDecorator {
+    public SugarDecorator(Coffee coffee) { super(coffee); }
+    
+    public double getCost() { return coffee.getCost() + 0.2; }
+    public String getDescription() { return coffee.getDescription() + ", sugar"; }
+}
+
+// Usage - stack decorators
+Coffee coffee = new SugarDecorator(new MilkDecorator(new SimpleCoffee()));
+System.out.println(coffee.getDescription());  // Simple coffee, milk, sugar
+System.out.println(coffee.getCost());         // 2.7
+```
+
+**3. Proxy - Control Access**
+Provides a placeholder for another object.
+
+```java
+interface Image {
+    void display();
+}
+
+class RealImage implements Image {
+    private String filename;
+    
+    public RealImage(String filename) {
+        this.filename = filename;
+        loadFromDisk();  // Expensive operation
+    }
+    
+    private void loadFromDisk() {
+        System.out.println("Loading " + filename);
+    }
+    
+    public void display() {
+        System.out.println("Displaying " + filename);
+    }
+}
+
+// Proxy - lazy loading
+class ProxyImage implements Image {
+    private RealImage realImage;
+    private String filename;
+    
+    public ProxyImage(String filename) {
+        this.filename = filename;
+    }
+    
+    public void display() {
+        if (realImage == null) {
+            realImage = new RealImage(filename);  // Load only when needed
+        }
+        realImage.display();
+    }
+}
+```
+
+### Behavioral Patterns
+
+**1. Strategy - Interchangeable Algorithms**
+Defines a family of algorithms and makes them interchangeable.
+
+```java
+interface PaymentStrategy {
+    void pay(double amount);
+}
+
+class CreditCardPayment implements PaymentStrategy {
+    public void pay(double amount) {
+        System.out.println("Paid $" + amount + " via Credit Card");
+    }
+}
+
+class PayPalPayment implements PaymentStrategy {
+    public void pay(double amount) {
+        System.out.println("Paid $" + amount + " via PayPal");
+    }
+}
+
+class ShoppingCart {
+    private PaymentStrategy paymentStrategy;
+    
+    public void setPaymentStrategy(PaymentStrategy strategy) {
+        this.paymentStrategy = strategy;
+    }
+    
+    public void checkout(double amount) {
+        paymentStrategy.pay(amount);
+    }
+}
+
+// Usage - change strategy at runtime
+ShoppingCart cart = new ShoppingCart();
+cart.setPaymentStrategy(new CreditCardPayment());
+cart.checkout(100.0);
+
+cart.setPaymentStrategy(new PayPalPayment());
+cart.checkout(50.0);
+```
+
+**2. Observer - Event Notification**
+Defines one-to-many dependency where subjects notify observers of state changes.
+
+```java
+interface Observer {
+    void update(String message);
+}
+
+class NewsAgency {
+    private List<Observer> observers = new ArrayList<>();
+    private String news;
+    
+    public void addObserver(Observer observer) {
+        observers.add(observer);
+    }
+    
+    public void removeObserver(Observer observer) {
+        observers.remove(observer);
+    }
+    
+    public void setNews(String news) {
+        this.news = news;
+        notifyObservers();
+    }
+    
+    private void notifyObservers() {
+        for (Observer observer : observers) {
+            observer.update(news);
+        }
+    }
+}
+
+class NewsChannel implements Observer {
+    private String name;
+    
+    public NewsChannel(String name) { this.name = name; }
+    
+    public void update(String news) {
+        System.out.println(name + " received: " + news);
+    }
+}
+
+// Usage
+NewsAgency agency = new NewsAgency();
+agency.addObserver(new NewsChannel("CNN"));
+agency.addObserver(new NewsChannel("BBC"));
+agency.setNews("Breaking news!");  // Both channels notified
+```
+
+**3. Command - Encapsulate Requests**
+Encapsulates a request as an object.
+
+```java
+interface Command {
+    void execute();
+    void undo();
+}
+
+class Light {
+    public void on() { System.out.println("Light on"); }
+    public void off() { System.out.println("Light off"); }
+}
+
+class LightOnCommand implements Command {
+    private Light light;
+    
+    public LightOnCommand(Light light) { this.light = light; }
+    
+    public void execute() { light.on(); }
+    public void undo() { light.off(); }
+}
+
+class RemoteControl {
+    private Command command;
+    
+    public void setCommand(Command command) { this.command = command; }
+    public void pressButton() { command.execute(); }
+    public void pressUndo() { command.undo(); }
+}
+
+// Usage
+Light light = new Light();
+RemoteControl remote = new RemoteControl();
+remote.setCommand(new LightOnCommand(light));
+remote.pressButton();  // Light on
+remote.pressUndo();    // Light off
+```
 
 ---
 
 ## Security
 
-### Key Topics:
-- **Java Security Manager** - Security policy enforcement
-- **Cryptography (JCA/JCE)** - Encryption/decryption
-- **SSL/TLS** - Secure communication
-- **Secure coding practices** - Prevent vulnerabilities
+### Input Validation
+
+```java
+// Always validate user input
+public void processInput(String input) {
+    if (input == null || input.isEmpty()) {
+        throw new IllegalArgumentException("Input cannot be empty");
+    }
+    
+    // Sanitize input
+    String sanitized = input.replaceAll("[^a-zA-Z0-9]", "");
+    
+    // Use whitelist approach
+    if (!input.matches("^[a-zA-Z0-9_]+$")) {
+        throw new IllegalArgumentException("Invalid characters");
+    }
+}
+```
+
+### SQL Injection Prevention
+
+```java
+// NEVER do this (vulnerable)
+String query = "SELECT * FROM users WHERE name = '" + userInput + "'";
+
+// ALWAYS use PreparedStatement
+PreparedStatement pstmt = conn.prepareStatement(
+    "SELECT * FROM users WHERE name = ?");
+pstmt.setString(1, userInput);  // Automatically escaped
+```
+
+### Encryption/Decryption
+
+```java
+import javax.crypto.*;
+import javax.crypto.spec.*;
+
+// AES Encryption
+public class AESUtil {
+    private static final String ALGORITHM = "AES";
+    
+    public static String encrypt(String data, String key) throws Exception {
+        SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(), ALGORITHM);
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+        byte[] encrypted = cipher.doFinal(data.getBytes());
+        return Base64.getEncoder().encodeToString(encrypted);
+    }
+    
+    public static String decrypt(String encryptedData, String key) throws Exception {
+        SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(), ALGORITHM);
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(Cipher.DECRYPT_MODE, secretKey);
+        byte[] decoded = Base64.getDecoder().decode(encryptedData);
+        return new String(cipher.doFinal(decoded));
+    }
+}
+```
+
+### Password Hashing
+
+```java
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+
+// Never store plain text passwords!
+public class PasswordUtil {
+    
+    // Generate salt
+    public static byte[] generateSalt() {
+        SecureRandom random = new SecureRandom();
+        byte[] salt = new byte[16];
+        random.nextBytes(salt);
+        return salt;
+    }
+    
+    // Hash password with salt
+    public static String hashPassword(String password, byte[] salt) throws Exception {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        md.update(salt);
+        byte[] hashedPassword = md.digest(password.getBytes());
+        return Base64.getEncoder().encodeToString(hashedPassword);
+    }
+}
+
+// Better: Use BCrypt library
+// String hashed = BCrypt.hashpw(password, BCrypt.gensalt());
+// boolean matches = BCrypt.checkpw(password, hashed);
+```
+
+### Secure File Operations
+
+```java
+// Validate file paths to prevent directory traversal
+public void readFile(String filename) {
+    Path basePath = Paths.get("/safe/directory").toAbsolutePath().normalize();
+    Path filePath = basePath.resolve(filename).normalize();
+    
+    // Ensure file is within allowed directory
+    if (!filePath.startsWith(basePath)) {
+        throw new SecurityException("Invalid file path");
+    }
+    
+    // Read file safely
+    Files.readString(filePath);
+}
+```
+
+### Security Best Practices
+1. Never trust user input - validate and sanitize
+2. Use parameterized queries for database operations
+3. Hash passwords with salt (use BCrypt)
+4. Use HTTPS for data transmission
+5. Keep dependencies updated
+6. Principle of least privilege
+7. Don't expose sensitive info in error messages
 
 ---
 
 ## Testing
 
-### Frameworks & Tools:
-- **JUnit 5** - Unit testing framework
-- **Mockito** - Mocking framework
-- **Integration testing** - Test system integration
-- **Property-based testing** - QuickCheck-style testing
-- **Mutation testing** - Test quality measurement
-- **JMH benchmarking** - Performance benchmarking
+### JUnit 5 Basics
+
+```java
+import org.junit.jupiter.api.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+class CalculatorTest {
+    
+    private Calculator calculator;
+    
+    @BeforeEach
+    void setUp() {
+        calculator = new Calculator();
+    }
+    
+    @Test
+    @DisplayName("Addition of two numbers")
+    void testAddition() {
+        assertEquals(4, calculator.add(2, 2));
+    }
+    
+    @Test
+    void testDivision() {
+        assertEquals(2, calculator.divide(10, 5));
+    }
+    
+    @Test
+    void testDivisionByZero() {
+        assertThrows(ArithmeticException.class, 
+            () -> calculator.divide(10, 0));
+    }
+    
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2, 3, 4, 5})
+    void testIsPositive(int number) {
+        assertTrue(calculator.isPositive(number));
+    }
+    
+    @ParameterizedTest
+    @CsvSource({"1, 1, 2", "2, 3, 5", "10, 20, 30"})
+    void testAddWithCsv(int a, int b, int expected) {
+        assertEquals(expected, calculator.add(a, b));
+    }
+    
+    @Disabled("Not implemented yet")
+    @Test
+    void testFeatureX() { }
+    
+    @AfterEach
+    void tearDown() {
+        calculator = null;
+    }
+}
+```
+
+### Assertions
+
+```java
+// Basic assertions
+assertEquals(expected, actual);
+assertNotEquals(unexpected, actual);
+assertTrue(condition);
+assertFalse(condition);
+assertNull(object);
+assertNotNull(object);
+assertSame(expected, actual);      // Same reference
+assertNotSame(unexpected, actual);
+
+// Array assertions
+assertArrayEquals(expectedArray, actualArray);
+
+// Exception assertions
+assertThrows(IllegalArgumentException.class, () -> doSomething());
+
+// Timeout assertions
+assertTimeout(Duration.ofSeconds(2), () -> longRunningMethod());
+
+// Grouped assertions (all run even if one fails)
+assertAll(
+    () -> assertEquals("John", person.getName()),
+    () -> assertEquals(25, person.getAge()),
+    () -> assertNotNull(person.getAddress())
+);
+```
+
+### Mockito - Mocking Framework
+
+```java
+import org.mockito.Mock;
+import org.mockito.InjectMocks;
+import static org.mockito.Mockito.*;
+
+class UserServiceTest {
+    
+    @Mock
+    private UserRepository userRepository;
+    
+    @InjectMocks
+    private UserService userService;
+    
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
+    
+    @Test
+    void testFindUser() {
+        // Arrange - setup mock behavior
+        User mockUser = new User("John", 25);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+        
+        // Act
+        User result = userService.findUser(1L);
+        
+        // Assert
+        assertEquals("John", result.getName());
+        verify(userRepository, times(1)).findById(1L);
+    }
+    
+    @Test
+    void testSaveUser() {
+        User user = new User("Jane", 30);
+        
+        userService.saveUser(user);
+        
+        verify(userRepository).save(user);  // Verify method was called
+    }
+    
+    @Test
+    void testThrowException() {
+        when(userRepository.findById(anyLong()))
+            .thenThrow(new RuntimeException("Database error"));
+        
+        assertThrows(RuntimeException.class, 
+            () -> userService.findUser(1L));
+    }
+}
+```
+
+### Test Lifecycle
+
+```java
+class LifecycleTest {
+    
+    @BeforeAll
+    static void setupAll() {
+        // Run once before all tests (static)
+    }
+    
+    @BeforeEach
+    void setup() {
+        // Run before each test
+    }
+    
+    @Test
+    void test1() { }
+    
+    @Test
+    void test2() { }
+    
+    @AfterEach
+    void teardown() {
+        // Run after each test
+    }
+    
+    @AfterAll
+    static void teardownAll() {
+        // Run once after all tests (static)
+    }
+}
+```
+
+### Testing Best Practices
+1. **AAA Pattern**: Arrange, Act, Assert
+2. **One assertion per test** (when possible)
+3. **Test edge cases** and error conditions
+4. **Use meaningful test names**
+5. **Keep tests independent** - no shared state
+6. **Mock external dependencies**
+7. **Aim for high coverage** but focus on critical paths
 
 ---
 
 ## Build & Tooling
 
-### Build Tools:
-- **Maven** - Dependency management & build
-- **Gradle** - Modern build tool
-- **Custom plugins**
-- **Dependency management**
-- **CI/CD integration**
+### Maven
+
+**pom.xml Structure:**
+```xml
+<project>
+    <modelVersion>4.0.0</modelVersion>
+    
+    <groupId>com.example</groupId>
+    <artifactId>myapp</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    
+    <properties>
+        <java.version>17</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+    </properties>
+    
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.9.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.10.1</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+```
+
+**Common Maven Commands:**
+```bash
+mvn clean                  # Delete target directory
+mvn compile               # Compile source code
+mvn test                  # Run tests
+mvn package               # Create JAR/WAR
+mvn install               # Install to local repository
+mvn clean install         # Clean and install
+mvn dependency:tree       # Show dependency tree
+```
+
+### Gradle
+
+**build.gradle Structure:**
+```groovy
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.0.0'
+}
+
+group = 'com.example'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = '17'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
+}
+
+test {
+    useJUnitPlatform()
+}
+```
+
+**Common Gradle Commands:**
+```bash
+./gradlew clean           # Delete build directory
+./gradlew build           # Compile, test, package
+./gradlew test            # Run tests
+./gradlew bootRun         # Run Spring Boot app
+./gradlew dependencies    # Show dependency tree
+```
 
 ---
 
