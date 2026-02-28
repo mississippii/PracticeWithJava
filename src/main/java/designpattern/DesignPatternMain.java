@@ -15,5 +15,9 @@ public class DesignPatternMain {
                 .setScreenSize("6.1\"")
                 .build();
         System.out.println(phone);
+
+        Thread customThread = new Thread(() -> {;
+            System.out.println("Custom thread is running");
+        });
     }
 }

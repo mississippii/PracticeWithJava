@@ -1,19 +1,14 @@
 package designpattern.creational.singleton;
 
 public class Singleton {
-
     private static Singleton instance;
+    private Integer x= 10;
 
-    private Singleton() {
-        System.out.println("Object Created successfully..");
-    }
-
-    public static Singleton getInstance() {
-        if (instance == null) {
-            synchronized (Singleton.class) {
-                if (instance==null) {
-                    instance = new Singleton();
-                }
+    private Singleton(){}
+    public static Singleton getInstance(){
+        if(instance==null){
+            synchronized (Singleton.class){
+                return instance = new Singleton();
             }
         }
         return instance;

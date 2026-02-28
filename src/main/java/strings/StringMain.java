@@ -1,13 +1,31 @@
 package strings;
 
 public class StringMain {
+    private static int countChar(int start, int end , String s, char c){
+        char[] ara = s.toCharArray();
+        int count = 0;
+        for(int i=start;i<=end;i++){
+            if(ara[i]==c) count++;
+        }
+        return count;
+    }
+    public static int minimumDeletions(String s) {
+        int countB = 0, deletions = 0;
+        for (char c : s.toCharArray()) {
+            if (c == 'b') {
+                countB++;
+            } else {
+                deletions = Math.min(deletions + 1, countB);
+            }
+        }
+        return deletions;
+    }
     public static void main(String[] args) {
         /**
         Stored in the string pool. String pool is a special memory area in the heap
          */
-        String str1 = "Hello java";
-        String str2 = "Hello java";
-        System.out.println(str1==str2);
+        String str1 = "aababbab";
+        int ans = minimumDeletions(str1);
         /**
          Create a new object in the heap outside the string pool
         */

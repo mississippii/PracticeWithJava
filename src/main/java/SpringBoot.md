@@ -2212,4 +2212,588 @@ private String apiUrl;
 
 ---
 
+## Interview Questions
+
+### Redis & Caching
+
+**Q1: What is Redis? What are the core concepts of Redis?**
+
+**Answer:**
+
+**Redis (Remote Dictionary Server)** is an open-source, **in-memory data structure store** used as a database, cache, message broker, and queue.
+
+**Core Concepts:**
+
+| Concept | Description |
+|---------|-------------|
+| In-Memory Storage | All data stored in RAM for sub-millisecond access |
+| Key-Value Store | Every piece of data is stored as a key-value pair |
+| Data Structures | Supports Strings, Lists, Sets, Sorted Sets, Hashes, Streams |
+| Persistence | RDB (snapshots) and AOF (append-only file) for durability |
+| Replication | Master-Slave replication for high availability |
+| Clustering | Horizontal scaling by partitioning data across nodes |
+| TTL (Time To Live) | Keys can expire automatically after a set duration |
+| Pub/Sub | Built-in publish/subscribe messaging |
+
+**Common Data Structures:**
+
+```
+Strings  → "user:1:name" = "John"
+Hashes   → "user:1" = { name: "John", age: 30 }
+Lists    → "queue:emails" = ["email1", "email2", "email3"]
+Sets     → "tags:post:1" = {"java", "redis", "spring"}
+Sorted Sets → "leaderboard" = {("Alice", 100), ("Bob", 85)}
+```
+
+**Use Cases:**
+- **Caching** — Store frequently accessed data (API responses, DB queries)
+- **Session Management** — Store user sessions across distributed servers
+- **Rate Limiting** — Track API call counts per user/IP
+- **Real-time Leaderboards** — Sorted sets for ranking
+- **Message Queues** — Lightweight pub/sub or stream-based queuing
+- **Distributed Locks** — Coordinate access in microservices
+
+---
+
+**Q2: How do you implement caching in a Spring Boot application using Redis?**
+
+**Answer:**
+
+**Step 1: Add Dependencies (pom.xml)**
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-redis</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-cache</artifactId>
+</dependency>
+```
+
+**Step 2: Configure Redis (application.properties)**
+
+```properties
+spring.redis.host=localhost
+spring.redis.port=6379
+spring.redis.password=yourpassword
+spring.cache.type=redis
+spring.cache.redis.time-to-live=3600000
+```
+
+**Step 3: Enable Caching**
+
+```java
+@SpringBootApplication
+@EnableCaching
+public class MyApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(MyApplication.class, args);
+    }
+}
+```
+
+**Step 4: Use Cache Annotations in Service Layer**
+
+```java
+@Service
+public class ProductService {
+
+    @Autowired
+    private ProductRepository productRepository;
+
+    // Cache the result — next call with same id returns cached value
+    @Cacheable(value = "products", key = "#id")
+    public Product getProductById(Long id) {
+        System.out.println("Fetching from DB...");
+        return productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+    }
+
+    // Update cache when data changes
+    @CachePut(value = "products", key = "#product.id")
+    public Product updateProduct(Product product) {
+        return productRepository.save(product);
+    }
+
+    // Remove from cache when data is deleted
+    @CacheEvict(value = "products", key = "#id")
+    public void deleteProduct(Long id) {
+        productRepository.deleteById(id);
+    }
+
+    // Clear entire cache
+    @CacheEvict(value = "products", allEntries = true)
+    public void clearCache() {
+        System.out.println("Cache cleared!");
+    }
+}
+```
+
+**Key Annotations:**
+
+| Annotation | Purpose |
+|------------|---------|
+| `@EnableCaching` | Enables Spring's caching infrastructure |
+| `@Cacheable` | Caches the return value; skips method if cached |
+| `@CachePut` | Always executes method and updates cache |
+| `@CacheEvict` | Removes entry from cache |
+
+---
+
+**Q3: What is the difference between @Cacheable and @CachePut?**
+
+**Answer:**
+
+| Aspect | @Cacheable | @CachePut |
+|--------|-----------|-----------|
+| Execution | Skips method if cache hit | Always executes the method |
+| Purpose | Read/fetch operations | Update/write operations |
+| Cache behavior | Returns cached value if exists | Updates cache with new return value |
+| Use case | `getProductById()` | `updateProduct()` |
+
+```java
+// @Cacheable — method NOT called if cache has the key
+@Cacheable(value = "users", key = "#id")
+public User getUser(Long id) {
+    // This runs ONLY on cache miss
+    return userRepository.findById(id).orElseThrow();
+}
+
+// @CachePut — method ALWAYS called, cache updated with result
+@CachePut(value = "users", key = "#user.id")
+public User updateUser(User user) {
+    // This ALWAYS runs, then result is cached
+    return userRepository.save(user);
+}
+```
+
+---
+
+### Kafka
+
+**Q4: What is Apache Kafka and why is it used?**
+
+**Answer:**
+
+**Apache Kafka** is a distributed **event streaming platform** used for building real-time data pipelines and streaming applications.
+
+**Core Components:**
+
+```
+┌──────────┐     ┌─────────────────────────┐     ┌──────────┐
+│ Producer │────>│        Kafka Broker       │────>│ Consumer │
+│ (Sender) │     │  ┌─────────────────────┐ │     │(Receiver)│
+└──────────┘     │  │   Topic: orders     │ │     └──────────┘
+                 │  │  ┌───┬───┬───┬───┐  │ │
+                 │  │  │P0 │P1 │P2 │P3 │  │ │
+                 │  │  └───┴───┴───┴───┘  │ │
+                 │  └─────────────────────┘ │
+                 └─────────────────────────┘
+```
+
+| Component | Description |
+|-----------|-------------|
+| **Producer** | Publishes messages to topics |
+| **Consumer** | Subscribes to topics and processes messages |
+| **Broker** | Kafka server that stores and serves messages |
+| **Topic** | Category/feed name to which messages are published |
+| **Partition** | Topics are split into partitions for parallelism |
+| **Consumer Group** | Group of consumers that share the work of reading a topic |
+| **Offset** | Position of a message within a partition |
+| **Zookeeper/KRaft** | Manages broker metadata and leader election |
+
+**Why Use Kafka?**
+- **Decoupling** — Producers and consumers are independent
+- **Scalability** — Handles millions of messages per second
+- **Durability** — Messages are persisted to disk and replicated
+- **Real-time Processing** — Low-latency event streaming
+- **Fault Tolerance** — Replication across brokers ensures no data loss
+
+**Common Use Cases:**
+- Order processing in e-commerce
+- Real-time analytics and monitoring
+- Log aggregation from microservices
+- Event sourcing and CQRS patterns
+- Data synchronization between services
+
+---
+
+**Q5: How do you implement a Kafka Producer in Spring Boot?**
+
+**Answer:**
+
+**Step 1: Add Dependency**
+
+```xml
+<dependency>
+    <groupId>org.springframework.kafka</groupId>
+    <artifactId>spring-kafka</artifactId>
+</dependency>
+```
+
+**Step 2: Configure (application.properties)**
+
+```properties
+spring.kafka.bootstrap-servers=localhost:9092
+spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer
+spring.kafka.producer.value-serializer=org.springframework.kafka.support.serializer.JsonSerializer
+```
+
+**Step 3: Create Producer Service**
+
+```java
+@Service
+public class OrderProducerService {
+
+    private static final String TOPIC = "order-events";
+
+    @Autowired
+    private KafkaTemplate<String, OrderEvent> kafkaTemplate;
+
+    public void sendOrderEvent(OrderEvent event) {
+        kafkaTemplate.send(TOPIC, event.getOrderId(), event);
+        System.out.println("Sent event: " + event);
+    }
+}
+```
+
+**Step 4: Use in Controller**
+
+```java
+@RestController
+@RequestMapping("/api/orders")
+public class OrderController {
+
+    @Autowired
+    private OrderProducerService producerService;
+
+    @PostMapping
+    public ResponseEntity<String> createOrder(@RequestBody OrderEvent event) {
+        producerService.sendOrderEvent(event);
+        return ResponseEntity.ok("Order event published!");
+    }
+}
+```
+
+**OrderEvent DTO:**
+
+```java
+public class OrderEvent {
+    private String orderId;
+    private String product;
+    private int quantity;
+    private double price;
+    private String status; // CREATED, SHIPPED, DELIVERED
+
+    // constructors, getters, setters
+}
+```
+
+---
+
+**Q6: How do you implement a Kafka Consumer in Spring Boot?**
+
+**Answer:**
+
+**Step 1: Configure (application.properties)**
+
+```properties
+spring.kafka.consumer.group-id=order-service-group
+spring.kafka.consumer.auto-offset-reset=earliest
+spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+spring.kafka.consumer.value-deserializer=org.springframework.kafka.support.serializer.JsonDeserializer
+spring.kafka.consumer.properties.spring.json.trusted.packages=*
+```
+
+**Step 2: Create Consumer Service**
+
+```java
+@Service
+public class OrderConsumerService {
+
+    @KafkaListener(topics = "order-events", groupId = "order-service-group")
+    public void consumeOrderEvent(OrderEvent event) {
+        System.out.println("Received event: " + event);
+
+        switch (event.getStatus()) {
+            case "CREATED":
+                processNewOrder(event);
+                break;
+            case "SHIPPED":
+                updateShippingStatus(event);
+                break;
+            case "DELIVERED":
+                completeOrder(event);
+                break;
+        }
+    }
+
+    private void processNewOrder(OrderEvent event) {
+        // validate inventory, charge payment, etc.
+        System.out.println("Processing new order: " + event.getOrderId());
+    }
+
+    private void updateShippingStatus(OrderEvent event) {
+        System.out.println("Updating shipping for: " + event.getOrderId());
+    }
+
+    private void completeOrder(OrderEvent event) {
+        System.out.println("Order completed: " + event.getOrderId());
+    }
+}
+```
+
+**Consumer with Manual Acknowledgment:**
+
+```java
+@KafkaListener(topics = "order-events", groupId = "order-service-group")
+public void consume(OrderEvent event, Acknowledgment ack) {
+    try {
+        processNewOrder(event);
+        ack.acknowledge(); // manually commit offset after successful processing
+    } catch (Exception e) {
+        // don't acknowledge — message will be redelivered
+        System.err.println("Failed to process: " + e.getMessage());
+    }
+}
+```
+
+---
+
+### Spring Annotations
+
+**Q7: What is @Component in Spring? What are its specializations?**
+
+**Answer:**
+
+`@Component` is a **generic stereotype annotation** that marks a Java class as a Spring-managed bean. Spring auto-detects it during component scanning and registers it in the ApplicationContext.
+
+**Specializations of @Component:**
+
+```
+              @Component (generic)
+              /         |         \
+    @Service      @Repository    @Controller
+   (Business      (Data Access)  (Web Layer)
+    Logic)
+```
+
+```java
+// Generic component
+@Component
+public class EmailValidator {
+    public boolean isValid(String email) {
+        return email != null && email.contains("@");
+    }
+}
+
+// Service layer
+@Service
+public class UserService {
+    // business logic
+}
+
+// Data access layer
+@Repository
+public class UserRepository {
+    // database operations — also enables exception translation
+}
+
+// Web layer
+@Controller
+public class UserController {
+    // handles HTTP requests, returns views
+}
+
+// REST API layer
+@RestController  // = @Controller + @ResponseBody
+public class UserApiController {
+    // handles HTTP requests, returns JSON/XML
+}
+```
+
+| Annotation | Layer | Extra Behavior |
+|-----------|-------|----------------|
+| `@Component` | Any | Basic bean registration |
+| `@Service` | Service/Business | Semantic clarity (no extra behavior) |
+| `@Repository` | Persistence/DAO | Exception translation (DB exceptions → Spring's DataAccessException) |
+| `@Controller` | Web/MVC | Enables request mapping, returns views |
+| `@RestController` | Web/REST API | `@Controller` + `@ResponseBody` combined |
+
+---
+
+**Q8: What is the difference between @Component and @Bean?**
+
+**Answer:**
+
+| Aspect | @Component | @Bean |
+|--------|-----------|-------|
+| **Target** | Class-level annotation | Method-level annotation |
+| **Detection** | Auto-detected via component scanning | Explicitly declared in @Configuration class |
+| **Control** | Spring creates the bean automatically | You control instantiation logic |
+| **Use case** | Your own classes | Third-party library classes you can't annotate |
+| **Customization** | Limited | Full control over creation |
+
+```java
+// @Component — annotate YOUR class directly
+@Component
+public class MyEmailService {
+    public void sendEmail(String to, String body) {
+        // your implementation
+    }
+}
+
+// @Bean — used for third-party classes or custom initialization
+@Configuration
+public class AppConfig {
+
+    // You can't add @Component to RestTemplate (it's a Spring class)
+    @Bean
+    public RestTemplate restTemplate() {
+        RestTemplate template = new RestTemplate();
+        template.setRequestFactory(new HttpComponentsClientHttpRequestFactory());
+        return template;
+    }
+
+    // Custom initialization with specific constructor args
+    @Bean
+    public ObjectMapper objectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        return mapper;
+    }
+}
+```
+
+**When to use which:**
+- Use `@Component` (and its specializations) for **your own classes**
+- Use `@Bean` when you need to **configure third-party objects** or need **complex initialization logic**
+
+---
+
+**Q9: What is @Service annotation? Is it different from @Component?**
+
+**Answer:**
+
+`@Service` is a **specialization of @Component** that indicates a class holds **business logic**. Functionally, it behaves identically to `@Component` — Spring treats them the same way during component scanning.
+
+**Why use @Service instead of @Component?**
+
+1. **Semantic Clarity** — Communicates the class's role in the architecture
+2. **Convention** — Teams follow layered architecture conventions
+3. **Future-proofing** — Spring may add service-specific behavior in future versions
+4. **AOP Targeting** — You can write pointcuts targeting `@Service` beans specifically
+
+```java
+// These two are functionally identical:
+
+@Component
+public class OrderProcessor {
+    public void process(Order order) { }
+}
+
+@Service
+public class OrderProcessor {
+    public void process(Order order) { }
+}
+```
+
+**Best Practice — Use the right annotation for the right layer:**
+
+```java
+@RestController  // Web layer
+public class OrderController {
+
+    @Autowired
+    private OrderService orderService;
+}
+
+@Service  // Business logic layer
+public class OrderService {
+
+    @Autowired
+    private OrderRepository orderRepository;
+}
+
+@Repository  // Data access layer
+public interface OrderRepository extends JpaRepository<Order, Long> {
+}
+```
+
+---
+
+**Q10: What is @Bean annotation and when do you use it?**
+
+**Answer:**
+
+`@Bean` is a **method-level annotation** used inside `@Configuration` classes. The method's return value is registered as a Spring bean in the ApplicationContext.
+
+**Common Use Cases:**
+
+**1. Configuring Third-Party Libraries**
+```java
+@Configuration
+public class SecurityConfig {
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(12);
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.csrf().disable()
+            .authorizeHttpRequests()
+            .requestMatchers("/api/public/**").permitAll()
+            .anyRequest().authenticated();
+        return http.build();
+    }
+}
+```
+
+**2. Conditional Bean Creation**
+```java
+@Configuration
+public class StorageConfig {
+
+    @Bean
+    @Profile("local")
+    public StorageService localStorage() {
+        return new LocalFileStorageService("/tmp/uploads");
+    }
+
+    @Bean
+    @Profile("prod")
+    public StorageService s3Storage() {
+        return new S3StorageService("my-bucket");
+    }
+}
+```
+
+**3. Bean with Dependencies**
+```java
+@Configuration
+public class AppConfig {
+
+    @Bean
+    public UserService userService(UserRepository userRepository,
+                                    PasswordEncoder encoder) {
+        return new UserService(userRepository, encoder);
+    }
+}
+```
+
+**Key Attributes:**
+
+| Attribute | Purpose | Example |
+|-----------|---------|---------|
+| `name` | Custom bean name | `@Bean(name = "myBean")` |
+| `initMethod` | Method called after construction | `@Bean(initMethod = "init")` |
+| `destroyMethod` | Method called before destruction | `@Bean(destroyMethod = "cleanup")` |
+
+---
+
 **End of Spring Boot Guide**

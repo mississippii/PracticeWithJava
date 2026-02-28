@@ -1,10 +1,8 @@
 package others;
 
 import java.io.IOException;
-import java.math.BigInteger;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Others {
 
@@ -13,11 +11,24 @@ public class Others {
         return x*factorial(--x);
     }
 
-    private static void twoVariables(int a, int b){
+    private static void swap(int a,int b){
+        a = a+b-(b=a);
         System.out.println(a+" "+b);
+        return;
+    }
+
+    private static int singleNumber(int[] nums) {
+        int ans = 0;
+        for (int i = 0; i < 32; i++) {
+            int cnt = 0;
+            for (int j : nums) {
+                cnt += (j >> i) & 1;
+            }
+            ans = ans | (cnt % 3) << i;
+        }
+        return ans;
     }
     public static void main(String[] args) throws IOException {
-        int x =10;
-        twoVariables(x++,x++);
+        swap(5,10);
     }
 }

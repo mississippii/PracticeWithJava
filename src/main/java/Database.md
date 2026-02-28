@@ -4007,4 +4007,633 @@ DELETE FROM employees WHERE id IN (SELECT id FROM duplicates WHERE rn > 1);
 
 ---
 
+**Q21: How do you optimize slow database queries?**
+
+**Answer:**
+
+**Step 1: Identify the Problem**
+```sql
+-- Use EXPLAIN/EXPLAIN ANALYZE to see query execution plan
+EXPLAIN ANALYZE SELECT * FROM orders WHERE customer_id = 123;
+```
+
+**Step 2: Common Optimization Techniques**
+
+| Technique | When to Use | Example |
+|-----------|-------------|---------|
+| **Indexing** | Columns in WHERE, JOIN, ORDER BY | `CREATE INDEX idx_customer ON orders(customer_id)` |
+| **Avoid SELECT *** | Fetch only needed columns | `SELECT id, name FROM users` |
+| **Pagination** | Large result sets | `LIMIT 20 OFFSET 40` |
+| **Query Rewriting** | Subqueries that can be JOINs | Replace `IN (SELECT ...)` with `JOIN` |
+| **Denormalization** | Frequent expensive JOINs | Store computed/aggregated data |
+| **Partitioning** | Very large tables | Range/hash partition by date |
+| **Connection Pooling** | High concurrent access | HikariCP in Spring Boot |
+| **Caching** | Repeated identical queries | Redis for frequently accessed data |
+
+**Step 3: Indexing Best Practices**
+
+```sql
+-- Single column index
+CREATE INDEX idx_email ON users(email);
+
+-- Composite index (order matters!)
+CREATE INDEX idx_status_date ON orders(status, created_date);
+
+-- Covering index (includes all columns needed by query)
+CREATE INDEX idx_covering ON orders(customer_id, status, total_amount);
+```
+
+**Step 4: Spring Boot / JPA Specific**
+
+```java
+// N+1 Problem — BAD
+@OneToMany(fetch = FetchType.LAZY)
+private List<Order> orders;
+// Accessing orders in a loop causes N+1 queries
+
+// Solution: Use JOIN FETCH
+@Query("SELECT c FROM Customer c JOIN FETCH c.orders WHERE c.id = :id")
+Customer findCustomerWithOrders(@Param("id") Long id);
+
+// Solution: Entity Graph
+@EntityGraph(attributePaths = {"orders"})
+Optional<Customer> findById(Long id);
+```
+
+**Step 5: Monitor and Measure**
+- Enable slow query log in MySQL/PostgreSQL
+- Use Spring Boot Actuator for connection pool metrics
+- Profile with tools like p6spy or datasource-proxy
+
+---
+
+**Q22: How do you design a database schema from Business Analyst (BA) requirements?**
+
+**Answer:**
+
+**Process Overview:**
+
+```
+BA Requirements → Entities → Relationships → Schema → Normalization → Indexes
+```
+
+**Step 1: Identify Entities from Requirements**
+
+Example BA Requirement: *"Users can place orders. Each order contains multiple products. Users can have multiple addresses."*
+
+Entities identified: `User`, `Order`, `Product`, `Address`
+
+**Step 2: Define Relationships**
+
+```
+User ──(1:N)──> Order
+User ──(1:N)──> Address
+Order ──(M:N)──> Product  (needs junction table: order_items)
+```
+
+**Step 3: Design Tables**
+
+```sql
+CREATE TABLE users (
+    id          BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name        VARCHAR(100) NOT NULL,
+    email       VARCHAR(255) UNIQUE NOT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE addresses (
+    id          BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id     BIGINT NOT NULL,
+    street      VARCHAR(255),
+    city        VARCHAR(100),
+    zip_code    VARCHAR(20),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE orders (
+    id          BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id     BIGINT NOT NULL,
+    status      VARCHAR(50) DEFAULT 'PENDING',
+    total       DECIMAL(10,2),
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE products (
+    id          BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name        VARCHAR(200) NOT NULL,
+    price       DECIMAL(10,2) NOT NULL,
+    stock       INT DEFAULT 0
+);
+
+-- Junction table for M:N relationship
+CREATE TABLE order_items (
+    id          BIGINT PRIMARY KEY AUTO_INCREMENT,
+    order_id    BIGINT NOT NULL,
+    product_id  BIGINT NOT NULL,
+    quantity    INT NOT NULL,
+    unit_price  DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+```
+
+**Step 4: Apply Normalization**
+- **1NF** — Each column holds atomic values, no repeating groups
+- **2NF** — All non-key columns depend on the entire primary key
+- **3NF** — No transitive dependencies (non-key column depending on another non-key column)
+
+**Step 5: Map to JPA Entities**
+
+```java
+@Entity
+@Table(name = "users")
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String name;
+
+    @Column(unique = true, nullable = false)
+    private String email;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<Order> orders;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<Address> addresses;
+}
+```
+
+---
+
+**Q23: What are the different types of Keys in a database? Explain all keys.**
+
+**Answer:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    DATABASE KEYS HIERARCHY                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   Super Key (all possible unique identifiers)                │
+│   ├── Candidate Key (minimal super keys)                     │
+│   │   ├── Primary Key (chosen candidate key)                 │
+│   │   └── Alternate Key (remaining candidate keys)           │
+│   │                                                          │
+│   Foreign Key (references another table's PK)                │
+│   Unique Key (unique but allows NULL)                        │
+│   Composite Key (multiple columns as key)                    │
+│   Surrogate Key (system-generated, no business meaning)      │
+│   Natural Key (real-world data used as key)                  │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Example Table: `employees`**
+
+```
+┌─────┬──────────────┬─────────────────────┬────────────┬─────────┐
+│ id  │ employee_code│ email               │ name       │ dept_id │
+├─────┼──────────────┼─────────────────────┼────────────┼─────────┤
+│ 1   │ EMP001       │ alice@company.com   │ Alice      │ 10      │
+│ 2   │ EMP002       │ bob@company.com     │ Bob        │ 20      │
+│ 3   │ EMP003       │ charlie@company.com │ Charlie    │ 10      │
+└─────┴──────────────┴─────────────────────┴────────────┴─────────┘
+```
+
+| Key Type | Definition | Example from Table |
+|----------|------------|-------------------|
+| **Super Key** | Any combination of columns that can uniquely identify a row | `{id}`, `{email}`, `{employee_code}`, `{id, name}`, `{id, email}` |
+| **Candidate Key** | Minimal super key — no column can be removed and still be unique | `{id}`, `{email}`, `{employee_code}` |
+| **Primary Key** | ONE candidate key chosen as the main identifier — NOT NULL, unique | `id` (chosen as PK) |
+| **Alternate Key** | Candidate keys that were NOT chosen as primary key | `email`, `employee_code` |
+| **Foreign Key** | Column that references the primary key of another table | `dept_id → departments(id)` |
+| **Unique Key** | Ensures uniqueness, allows one NULL, multiple per table | `email UNIQUE`, `employee_code UNIQUE` |
+| **Composite Key** | Primary key made of 2+ columns together | `PRIMARY KEY (student_id, course_id)` |
+| **Surrogate Key** | System-generated key with no business meaning (auto-increment, UUID) | `id INT AUTO_INCREMENT` |
+| **Natural Key** | Real-world data used as key | `email`, `SSN`, `ISBN` |
+
+```sql
+-- All keys in action
+CREATE TABLE employees (
+    id INT AUTO_INCREMENT PRIMARY KEY,          -- Primary Key (Surrogate)
+    employee_code VARCHAR(10) UNIQUE NOT NULL,  -- Alternate Key / Unique Key
+    email VARCHAR(100) UNIQUE NOT NULL,         -- Alternate Key / Unique Key
+    name VARCHAR(100),
+    dept_id INT,                                -- Foreign Key
+    FOREIGN KEY (dept_id) REFERENCES departments(id)
+);
+
+-- Composite Key example
+CREATE TABLE order_items (
+    order_id INT,
+    product_id INT,
+    quantity INT,
+    PRIMARY KEY (order_id, product_id),         -- Composite Key
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+```
+
+**Surrogate Key vs Natural Key:**
+
+| Aspect | Surrogate Key | Natural Key |
+|--------|--------------|-------------|
+| What | Auto-generated (id, UUID) | Business data (email, SSN) |
+| Changes? | Never changes | Can change (email update) |
+| Size | Small (INT = 4 bytes) | Can be large (VARCHAR) |
+| Meaning | No business meaning | Has business meaning |
+| JOIN performance | Faster (small INT) | Slower (large strings) |
+| Best for | Most tables | Lookup/reference tables |
+
+---
+
+**Q24: Explain ER Diagrams — What are Cardinality and Ordinality?**
+
+**Answer:**
+
+An **ER (Entity-Relationship) Diagram** visually represents tables, their columns, and how they relate to each other.
+
+**Cardinality** — The **maximum** number of times an entity can participate in a relationship (1 or Many).
+
+**Ordinality (Participation)** — The **minimum** number of times an entity MUST participate (0 = optional, 1 = mandatory).
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              CARDINALITY + ORDINALITY NOTATION                │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Crow's Foot Notation (most common):                         │
+│                                                              │
+│  ──────┤├──────    One (and only one)      │  mandatory one   │
+│  ──────○├──────    Zero or one             │  optional one    │
+│  ──────┤<──────    One or many             │  mandatory many  │
+│  ──────○<──────    Zero or many            │  optional many   │
+│                                                              │
+│  Symbol Meaning:                                             │
+│  ┤  or  │  = "exactly one" (mandatory)                       │
+│  ○      = "zero" (optional)                                  │
+│  <  or  > = "many"                                           │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**The 4 Types of Cardinality:**
+
+**1. One-to-One (1:1)**
+```
+┌──────────┐          ┌──────────────┐
+│  USER    │          │   PASSPORT   │
+│──────────│          │──────────────│
+│ *user_id ├────┤├────┤ *passport_id │
+│  name    │          │  user_id (FK)│
+│  email   │          │  number      │
+└──────────┘          └──────────────┘
+
+One user has exactly one passport.
+One passport belongs to exactly one user.
+```
+
+**2. One-to-Many (1:N)**
+```
+┌──────────────┐              ┌──────────────┐
+│  DEPARTMENT  │              │   EMPLOYEE   │
+│──────────────│              │──────────────│
+│ *dept_id     ├────┤├────○<──┤ *emp_id      │
+│  dept_name   │              │  name        │
+└──────────────┘              │  dept_id (FK)│
+                              └──────────────┘
+
+One department has zero or many employees.
+One employee belongs to exactly one department.
+```
+
+**3. Many-to-Many (M:N)**
+```
+┌──────────┐          ┌──────────────┐          ┌──────────┐
+│ STUDENT  │          │  ENROLLMENT  │          │  COURSE  │
+│──────────│          │──────────────│          │──────────│
+│ *stu_id  ├──┤├──○<──┤ *stu_id (FK) │──>○──┤├──┤ *crs_id  │
+│  name    │          │ *crs_id (FK) │          │  title   │
+└──────────┘          │  grade       │          └──────────┘
+                      └──────────────┘
+                       (Junction Table)
+
+One student enrolls in zero or many courses.
+One course has zero or many students.
+Resolved through junction/bridge table.
+```
+
+**4. Zero/Optional Relationships**
+```
+┌──────────┐              ┌──────────────┐
+│ CUSTOMER │              │    ORDER     │
+│──────────│              │──────────────│
+│ *cust_id ├────┤├────○<──┤ *order_id    │
+│  name    │              │  cust_id (FK)│
+└──────────┘              └──────────────┘
+
+One customer has ZERO or many orders (○ = optional, customer may not have ordered yet).
+One order belongs to exactly ONE customer (┤├ = mandatory).
+```
+
+**Cardinality vs Ordinality Summary:**
+
+| Concept | Question It Answers | Values | Symbol |
+|---------|-------------------|--------|--------|
+| **Cardinality** | "How many MAX?" | One (1) or Many (N) | `┤├` = one, `<` = many |
+| **Ordinality** | "Is it required?" | Mandatory (1) or Optional (0) | `┤` = mandatory, `○` = optional |
+
+**Reading an ER Relationship:**
+```
+CUSTOMER ──┤├────○<── ORDER
+
+Read from left:  "Each CUSTOMER has ZERO or MANY orders"
+Read from right: "Each ORDER belongs to exactly ONE customer"
+
+Cardinality: 1:N (one-to-many)
+Ordinality:  Customer side = mandatory (must exist)
+             Order side = optional (may have zero orders)
+```
+
+---
+
+**Q25: What are all the types of SQL functions? Explain with categories.**
+
+**Answer:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   SQL FUNCTION CATEGORIES                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  1. Aggregate Functions   — Operate on groups of rows        │
+│  2. Scalar Functions      — Operate on single values         │
+│     ├── String Functions                                     │
+│     ├── Numeric Functions                                    │
+│     ├── Date/Time Functions                                  │
+│     └── Conditional Functions                                │
+│  3. Window Functions      — Aggregate + keep individual rows │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**1. Aggregate Functions** — Take multiple rows, return ONE value
+
+| Function | Purpose | Example |
+|----------|---------|---------|
+| `COUNT()` | Count rows | `COUNT(*)`, `COUNT(DISTINCT col)` |
+| `SUM()` | Total of values | `SUM(salary)` |
+| `AVG()` | Average | `AVG(price)` |
+| `MAX()` | Highest value | `MAX(salary)` |
+| `MIN()` | Lowest value | `MIN(price)` |
+| `GROUP_CONCAT()` | Combine values | `GROUP_CONCAT(name SEPARATOR ', ')` |
+
+```sql
+SELECT dept_id,
+       COUNT(*) AS total,
+       SUM(salary) AS total_salary,
+       AVG(salary) AS avg_salary,
+       MAX(salary) AS max_salary,
+       MIN(salary) AS min_salary
+FROM employees
+GROUP BY dept_id;
+```
+
+**2. Scalar Functions** — Take ONE value, return ONE value
+
+| Category | Functions | Example |
+|----------|-----------|---------|
+| **String** | `UPPER()`, `LOWER()`, `LENGTH()`, `CONCAT()`, `SUBSTRING()`, `TRIM()`, `REPLACE()`, `REVERSE()`, `LPAD()`, `RPAD()` | `UPPER('hello')` → `'HELLO'` |
+| **Numeric** | `ROUND()`, `CEIL()`, `FLOOR()`, `ABS()`, `MOD()`, `POWER()`, `SQRT()`, `TRUNCATE()`, `RAND()` | `ROUND(3.567, 2)` → `3.57` |
+| **Date** | `NOW()`, `CURDATE()`, `YEAR()`, `MONTH()`, `DAY()`, `DATEDIFF()`, `DATE_ADD()`, `DATE_FORMAT()` | `YEAR('2024-01-15')` → `2024` |
+| **Conditional** | `IF()`, `IFNULL()`, `COALESCE()`, `NULLIF()`, `CASE WHEN` | `COALESCE(NULL, 'default')` → `'default'` |
+
+**3. Window / Analytic Functions** — Like aggregate but keep ALL rows
+
+Window functions perform calculations across a **set of rows related to the current row** without collapsing them into one.
+
+```sql
+SELECT
+    name,
+    department,
+    salary,
+    -- Ranking
+    ROW_NUMBER() OVER (ORDER BY salary DESC) AS row_num,
+    RANK()       OVER (ORDER BY salary DESC) AS rank,
+    DENSE_RANK() OVER (ORDER BY salary DESC) AS dense_rank,
+
+    -- Aggregates as window
+    SUM(salary)  OVER (PARTITION BY department) AS dept_total,
+    AVG(salary)  OVER (PARTITION BY department) AS dept_avg,
+    COUNT(*)     OVER (PARTITION BY department) AS dept_count,
+
+    -- Navigation
+    LAG(salary, 1)  OVER (ORDER BY salary) AS prev_salary,
+    LEAD(salary, 1) OVER (ORDER BY salary) AS next_salary,
+    FIRST_VALUE(name) OVER (PARTITION BY department ORDER BY salary DESC) AS top_earner,
+
+    -- Running total
+    SUM(salary) OVER (ORDER BY hire_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total
+FROM employees;
+```
+
+**Window Functions Summary:**
+
+| Category | Functions | Purpose |
+|----------|-----------|---------|
+| **Ranking** | `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()`, `NTILE()` | Assign rank/position |
+| **Aggregate** | `SUM()`, `AVG()`, `COUNT()`, `MAX()`, `MIN()` over window | Group calc without collapsing |
+| **Navigation** | `LAG()`, `LEAD()`, `FIRST_VALUE()`, `LAST_VALUE()`, `NTH_VALUE()` | Access other rows |
+
+**Aggregate vs Window Function:**
+
+| Aspect | Aggregate Function | Window Function |
+|--------|-------------------|-----------------|
+| Rows returned | One row per group | All rows preserved |
+| Requires | `GROUP BY` | `OVER()` clause |
+| Example | `SELECT dept, AVG(sal) ... GROUP BY dept` | `AVG(sal) OVER (PARTITION BY dept)` |
+| Result | Collapses rows | Adds column to each row |
+
+---
+
+**Q26: Explain all types of Indexes in a database.**
+
+**Answer:**
+
+| Index Type | Description | Use Case |
+|-----------|-------------|----------|
+| **Clustered** | Defines physical order of data on disk. One per table. PK creates this automatically. | Range queries, ORDER BY |
+| **Non-Clustered** | Separate structure with pointers to rows. Multiple allowed. | Specific lookups (email, phone) |
+| **Composite** | Index on 2+ columns. Follows leftmost prefix rule. | Multi-column WHERE/JOIN |
+| **Covering** | Index contains ALL columns a query needs — no table access. | Frequently run queries |
+| **Unique** | Ensures all indexed values are distinct. | Email, SSN, phone columns |
+| **Full-Text** | Optimized for text search in large text columns. | Search in articles, descriptions |
+| **Partial / Filtered** | Index on a subset of rows (with WHERE condition). | Active users only, recent orders |
+| **Hash** | Uses hash function. Exact match only, no range queries. | Equality lookups (=) |
+| **Bitmap** | Bit arrays for each distinct value. Low-cardinality columns. | Gender, status, boolean flags |
+
+```sql
+-- 1. Clustered (created automatically with PRIMARY KEY)
+CREATE TABLE users (
+    id INT PRIMARY KEY  -- clustered index
+);
+
+-- 2. Non-Clustered
+CREATE INDEX idx_email ON users(email);
+
+-- 3. Composite
+CREATE INDEX idx_dept_salary ON employees(department, salary);
+-- Uses index: WHERE department = 'IT' AND salary > 50000  ✓
+-- Uses index: WHERE department = 'IT'                      ✓
+-- Skips index: WHERE salary > 50000                        ✗ (not leftmost)
+
+-- 4. Covering
+CREATE INDEX idx_covering ON orders(customer_id, order_date, amount);
+-- This query uses ONLY the index:
+SELECT customer_id, order_date, amount FROM orders WHERE customer_id = 1;
+
+-- 5. Unique
+CREATE UNIQUE INDEX idx_unique_email ON users(email);
+
+-- 6. Full-Text
+CREATE FULLTEXT INDEX idx_ft_content ON articles(title, body);
+-- Usage:
+SELECT * FROM articles WHERE MATCH(title, body) AGAINST('database indexing');
+
+-- 7. Partial / Filtered (PostgreSQL)
+CREATE INDEX idx_active_users ON users(email) WHERE is_active = true;
+-- SQL Server:
+CREATE INDEX idx_active ON users(email) WHERE is_active = 1;
+
+-- 8. Hash (PostgreSQL)
+CREATE INDEX idx_hash_email ON users USING HASH (email);
+-- Fast for: WHERE email = 'john@email.com'
+-- Cannot do: WHERE email LIKE 'john%'  (no range support)
+```
+
+**B-Tree vs Hash Index:**
+
+| Aspect | B-Tree (Default) | Hash |
+|--------|-----------------|------|
+| Equality (`=`) | Yes | Yes |
+| Range (`>`, `<`, `BETWEEN`) | Yes | No |
+| Sorting (`ORDER BY`) | Yes | No |
+| Pattern (`LIKE 'abc%'`) | Yes (prefix) | No |
+| Default in | MySQL, PostgreSQL | Memory tables |
+
+---
+
+**Q27: What are Subqueries? Explain all types with examples.**
+
+**Answer:**
+
+A **subquery** is a query nested inside another query. The inner query executes first, and its result is used by the outer query.
+
+**Types of Subqueries:**
+
+```
+Subqueries
+├── By Return Value
+│   ├── Scalar Subquery    → Returns single value
+│   ├── Row Subquery       → Returns single row
+│   └── Table Subquery     → Returns multiple rows/columns
+│
+├── By Dependency
+│   ├── Non-Correlated     → Independent of outer query
+│   └── Correlated         → References outer query (runs per row)
+│
+└── By Location
+    ├── In WHERE clause
+    ├── In FROM clause (Derived Table / Inline View)
+    └── In SELECT clause (Scalar only)
+```
+
+```sql
+-- 1. Scalar Subquery (single value) — in WHERE
+SELECT name, salary FROM employees
+WHERE salary > (SELECT AVG(salary) FROM employees);
+
+-- 2. Scalar Subquery — in SELECT
+SELECT name, salary,
+       salary - (SELECT AVG(salary) FROM employees) AS diff_from_avg
+FROM employees;
+
+-- 3. Table Subquery — with IN
+SELECT * FROM employees
+WHERE dept_id IN (SELECT id FROM departments WHERE location = 'Mumbai');
+
+-- 4. Correlated Subquery — references outer query
+SELECT e.name, e.salary, e.dept_id
+FROM employees e
+WHERE e.salary > (
+    SELECT AVG(salary) FROM employees WHERE dept_id = e.dept_id
+);
+-- Runs the inner query ONCE per row of outer query
+
+-- 5. Subquery in FROM (Derived Table)
+SELECT dept_name, avg_salary
+FROM (
+    SELECT d.dept_name, AVG(e.salary) AS avg_salary
+    FROM employees e JOIN departments d ON e.dept_id = d.id
+    GROUP BY d.dept_name
+) AS dept_stats
+WHERE avg_salary > 60000;
+
+-- 6. EXISTS (checks if subquery returns any rows)
+SELECT c.name FROM customers c
+WHERE EXISTS (
+    SELECT 1 FROM orders o WHERE o.customer_id = c.id
+);
+-- Returns customers who have at least one order
+
+-- 7. NOT EXISTS
+SELECT c.name FROM customers c
+WHERE NOT EXISTS (
+    SELECT 1 FROM orders o WHERE o.customer_id = c.id
+);
+-- Returns customers who have NEVER ordered
+```
+
+**EXISTS vs IN:**
+
+| Aspect | IN | EXISTS |
+|--------|-----|--------|
+| How it works | Compares value against a list | Checks if subquery returns any row |
+| NULL handling | Fails with NULLs in subquery | Handles NULLs correctly |
+| Performance (large outer, small inner) | Better | Slower |
+| Performance (small outer, large inner) | Slower | Better |
+| Readability | Simpler | More verbose |
+
+```sql
+-- IN — better when subquery result is small
+SELECT * FROM employees WHERE dept_id IN (SELECT id FROM departments WHERE location = 'Mumbai');
+
+-- EXISTS — better when outer table is small, inner table is large
+SELECT * FROM departments d WHERE EXISTS (SELECT 1 FROM employees e WHERE e.dept_id = d.id);
+```
+
+**Subquery vs JOIN:**
+
+```sql
+-- Subquery
+SELECT name FROM employees
+WHERE dept_id IN (SELECT id FROM departments WHERE location = 'Mumbai');
+
+-- Equivalent JOIN (usually better performance)
+SELECT e.name FROM employees e
+JOIN departments d ON e.dept_id = d.id
+WHERE d.location = 'Mumbai';
+```
+
+| Aspect | Subquery | JOIN |
+|--------|----------|------|
+| Readability | More readable for simple cases | Better for complex relations |
+| Performance | Can be slower (executed per row for correlated) | Usually faster (optimizer can merge) |
+| When to use | Aggregate comparisons, EXISTS checks | Fetching columns from multiple tables |
+
+---
+
 **End of Database Reference Guide**
