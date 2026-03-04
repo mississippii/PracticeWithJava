@@ -2212,6 +2212,800 @@ private String apiUrl;
 
 ---
 
+---
+
+# 8. How a Microservice Project Works — Complete Architecture
+
+## 8.1 Monolith vs Microservices
+
+```
+MONOLITH (Single Application)              MICROSERVICES (Multiple Services)
+┌─────────────────────────┐               ┌──────────┐  ┌──────────┐  ┌──────────┐
+│     ONE BIG APP         │               │  User    │  │  Order   │  │  Payment │
+│  ┌───────┐ ┌──────────┐│               │  Service │  │  Service │  │  Service │
+│  │ User  │ │  Order   ││               │  (8081)  │  │  (8082)  │  │  (8083)  │
+│  │Module │ │  Module  ││               └────┬─────┘  └────┬─────┘  └────┬─────┘
+│  ├───────┤ ├──────────┤│                    │             │             │
+│  │Payment│ │Inventory ││               ┌────┴─────────────┴─────────────┴────┐
+│  │Module │ │  Module  ││               │           Message Broker (Kafka)    │
+│  └───────┘ └──────────┘│               └─────────────────────────────────────┘
+│     ONE Database        │
+│     ONE Deployment      │               Each service has its OWN database
+└─────────────────────────┘               Each service deploys INDEPENDENTLY
+```
+
+| Aspect | Monolith | Microservices |
+|--------|----------|---------------|
+| Deployment | All-or-nothing | Deploy services independently |
+| Scaling | Scale entire app | Scale individual services |
+| Tech Stack | One stack for all | Each service can use different tech |
+| Database | Single shared DB | Database per service |
+| Failure | One bug can crash everything | Failure isolated to one service |
+| Team | One large team | Small teams own individual services |
+| Complexity | Simple to start | Complex infrastructure needed |
+
+---
+
+## 8.2 Complete Microservice Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        CLIENT (Browser / Mobile)                         │
+└─────────────────────────┬───────────────────────────────────────────────┘
+                          │ HTTPS Request
+                          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        API GATEWAY (Spring Cloud Gateway)                │
+│  - Single entry point for all requests                                   │
+│  - Routes requests to correct service                                    │
+│  - Authentication/Authorization (JWT validation)                         │
+│  - Rate limiting, Load balancing                                         │
+│  - Port: 8080                                                            │
+└────────┬──────────────────┬──────────────────┬──────────────────────────┘
+         │                  │                  │
+         ▼                  ▼                  ▼
+┌────────────────┐ ┌────────────────┐ ┌────────────────┐
+│  USER SERVICE  │ │ ORDER SERVICE  │ │PAYMENT SERVICE │
+│  Port: 8081    │ │  Port: 8082    │ │  Port: 8083    │
+│                │ │                │ │                │
+│  - Register    │ │  - Place order │ │  - Process pay │
+│  - Login       │ │  - Track order │ │  - Refunds     │
+│  - Profile     │ │  - Cancel      │ │  - History     │
+│                │ │                │ │                │
+│  ┌──────────┐  │ │  ┌──────────┐  │ │  ┌──────────┐  │
+│  │ User DB  │  │ │  │ Order DB │  │ │  │Payment DB│  │
+│  │ (MySQL)  │  │ │  │(Postgres)│  │ │  │ (MySQL)  │  │
+│  └──────────┘  │ │  └──────────┘  │ │  └──────────┘  │
+└───────┬────────┘ └───────┬────────┘ └───────┬────────┘
+        │                  │                  │
+        └──────────────────┼──────────────────┘
+                           │
+              ┌────────────┴────────────┐
+              │   SERVICE DISCOVERY     │
+              │   (Eureka / Consul)     │
+              │   Port: 8761            │
+              │                         │
+              │   Keeps track of all    │
+              │   running services      │
+              │   and their locations   │
+              └────────────┬────────────┘
+                           │
+              ┌────────────┴────────────┐
+              │    CONFIG SERVER        │
+              │   (Spring Cloud Config) │
+              │   Port: 8888            │
+              │                         │
+              │   Centralized config    │
+              │   for all services      │
+              └─────────────────────────┘
+```
+
+---
+
+## 8.3 Why Each Service Is Needed
+
+### API Gateway — Why?
+
+**Problem without Gateway:**
+```
+Client must know every service URL:
+  - http://192.168.1.10:8081/users       (User Service)
+  - http://192.168.1.11:8082/orders      (Order Service)
+  - http://192.168.1.12:8083/payments    (Payment Service)
+
+What if service moves? Client breaks!
+What about authentication? Each service must handle it!
+What about rate limiting? Each service must implement it!
+```
+
+**Solution — API Gateway:**
+```
+Client only knows ONE URL: http://api.myapp.com
+
+Gateway handles:
+  /api/users/**    → routes to User Service
+  /api/orders/**   → routes to Order Service
+  /api/payments/** → routes to Payment Service
+```
+
+```yaml
+# Gateway configuration (application.yml)
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: user-service
+          uri: lb://USER-SERVICE          # lb = load balanced via Eureka
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - AuthFilter                  # Custom JWT validation filter
+
+        - id: order-service
+          uri: lb://ORDER-SERVICE
+          predicates:
+            - Path=/api/orders/**
+```
+
+**Gateway provides:**
+- Single entry point (clients don't know internal URLs)
+- Authentication/Authorization at the edge
+- Rate limiting and throttling
+- Request/Response logging
+- Load balancing across service instances
+- SSL termination
+
+---
+
+### Service Discovery (Eureka) — Why?
+
+**Problem without Discovery:**
+```
+Order Service needs to call User Service.
+User Service runs on 192.168.1.10:8081... or does it?
+
+What if:
+  - Service restarts on different port?
+  - We scale to 3 instances?
+  - Server IP changes?
+
+Hardcoded URLs break!
+```
+
+**Solution — Service Discovery:**
+```
+Each service registers itself with Eureka on startup:
+  "I am USER-SERVICE, running at 192.168.1.10:8081"
+  "I am USER-SERVICE, running at 192.168.1.11:8081"  (2nd instance)
+  "I am ORDER-SERVICE, running at 192.168.1.12:8082"
+
+When Order Service needs User Service:
+  1. Asks Eureka: "Where is USER-SERVICE?"
+  2. Eureka returns: ["192.168.1.10:8081", "192.168.1.11:8081"]
+  3. Load balancer picks one
+```
+
+```java
+// No hardcoded URLs — use service name!
+@FeignClient(name = "USER-SERVICE")
+public interface UserClient {
+
+    @GetMapping("/users/{id}")
+    UserDTO getUserById(@PathVariable Long id);
+}
+```
+
+---
+
+### Config Server — Why?
+
+**Problem without Config Server:**
+```
+50 microservices × 3 environments (dev, staging, prod) = 150 config files!
+
+Changing database password?
+  → Update 50 application.properties files
+  → Rebuild and redeploy 50 services
+```
+
+**Solution — Centralized Config:**
+```
+All configs stored in ONE place (Git repo or Vault):
+  config-repo/
+    ├── user-service-dev.yml
+    ├── user-service-prod.yml
+    ├── order-service-dev.yml
+    └── order-service-prod.yml
+
+Services fetch their config from Config Server on startup.
+Change password? Update ONE file → all services pick it up.
+```
+
+---
+
+## 8.4 JPA vs Hibernate — What and Why
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    JPA vs HIBERNATE                                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  JPA (Jakarta Persistence API)                                       │
+│  ─────────────────────────────                                       │
+│  - A SPECIFICATION (set of rules/interfaces)                         │
+│  - Defines HOW ORM should work in Java                               │
+│  - Like a contract: "Any ORM must support these features"            │
+│  - Annotations: @Entity, @Table, @Id, @Column, @OneToMany           │
+│  - Cannot run by itself — needs an implementation                    │
+│                                                                      │
+│  Hibernate                                                           │
+│  ─────────                                                           │
+│  - An IMPLEMENTATION of JPA                                          │
+│  - Actually does the ORM work (converts objects ↔ SQL)               │
+│  - Most popular JPA provider                                         │
+│  - Has extra features beyond JPA spec                                │
+│                                                                      │
+│  Analogy:                                                            │
+│  JPA = JDBC interface (rules)                                        │
+│  Hibernate = MySQL Driver (implementation)                           │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+| Aspect | JPA | Hibernate |
+|--------|-----|-----------|
+| **What** | Specification (interfaces + annotations) | Implementation (actual code) |
+| **Type** | API / Standard | ORM Framework |
+| **Can run alone?** | No — needs provider | Yes |
+| **Defined by** | Jakarta EE (formerly Java EE) | Red Hat / JBoss |
+| **Key classes** | `EntityManager`, `@Entity` | `Session`, `SessionFactory` |
+| **Query** | JPQL (JPA Query Language) | HQL (Hibernate Query Language) + JPQL |
+| **Caching** | Not defined | 1st level (Session) + 2nd level (shared) |
+| **Alternatives** | — | EclipseLink, OpenJPA (other JPA implementations) |
+
+**How They Work Together in Spring Boot:**
+
+```java
+// You write JPA annotations (specification)
+@Entity
+@Table(name = "users")
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String name;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Order> orders;
+}
+
+// You use Spring Data JPA repository (specification)
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findByName(String name);
+
+    @Query("SELECT u FROM User u WHERE u.email = :email")
+    Optional<User> findByEmail(@Param("email") String email);
+}
+
+// Behind the scenes, Hibernate (implementation) converts this to SQL:
+// SELECT * FROM users WHERE name = ?
+// SELECT * FROM users WHERE email = ?
+```
+
+**Spring Boot auto-configures Hibernate as the JPA provider:**
+```properties
+# application.properties
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+```
+
+---
+
+## 8.5 Security Types — Authentication & Authorization
+
+### Types of Security in Microservices
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                   SECURITY APPROACHES                                │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  1. Basic Authentication     — Username:Password in every request    │
+│  2. Session-Based Auth       — Server stores session, client has ID  │
+│  3. JWT (JSON Web Token)     — Stateless token-based auth            │
+│  4. OAuth 2.0                — Third-party auth (Google, GitHub)     │
+│  5. API Key                  — Simple key for service-to-service     │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+**1. Basic Authentication**
+
+```
+Client sends credentials in EVERY request:
+Authorization: Basic base64(username:password)
+
+Example: Authorization: Basic am9objpzZWNyZXQ=  (john:secret)
+```
+
+| Pros | Cons |
+|------|------|
+| Simple to implement | Password sent with every request |
+| No session management | Must use HTTPS (plain text otherwise) |
+| | No logout mechanism |
+| | Not suitable for browser apps |
+
+**Use case:** Internal service-to-service calls, simple APIs
+
+---
+
+**2. Session-Based Authentication**
+
+```
+1. Client sends login credentials
+2. Server creates session, stores in memory/Redis
+3. Server sends back Session ID (cookie)
+4. Client sends cookie with every request
+5. Server validates session ID
+
+Client                              Server
+  │── POST /login (user, pass) ───>│
+  │<── Set-Cookie: JSESSIONID=abc ─│  (session stored in server memory)
+  │                                 │
+  │── GET /profile                 │
+  │   Cookie: JSESSIONID=abc ─────>│  (server looks up session)
+  │<── 200 OK + user data ────────│
+```
+
+| Pros | Cons |
+|------|------|
+| Simple, well-understood | Server must store sessions (stateful) |
+| Easy logout (delete session) | Doesn't scale well (sticky sessions needed) |
+| | Not suitable for microservices (shared state) |
+
+**Use case:** Traditional monolith web applications
+
+---
+
+**3. JWT (JSON Web Token) — Most Common in Microservices**
+
+```
+1. Client sends login credentials
+2. Server validates and returns a JWT token
+3. Client sends token in Authorization header
+4. Any service can validate the token (stateless!)
+
+Client                    Gateway              User Service
+  │── POST /login ──────>│──────────────────>│
+  │                       │                   │ validates credentials
+  │<── JWT Token ────────│<── JWT Token ─────│ generates JWT
+  │                       │                   │
+  │── GET /orders         │                   │
+  │   Authorization:      │                   │
+  │   Bearer eyJhb... ──>│                   │
+  │                       │ validates JWT     │
+  │                       │── forward ──────>│ Order Service
+  │<── 200 OK ───────────│<── response ─────│
+```
+
+**JWT Structure:**
+```
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqb2huIiwicm9sZSI6IkFETUlOIiwiZXhwIjoxNzA5MjAwMDAwfQ.signature
+
+Header.Payload.Signature
+
+Header:  {"alg": "HS256", "typ": "JWT"}
+Payload: {"sub": "john", "role": "ADMIN", "exp": 1709200000}
+Signature: HMACSHA256(header + "." + payload, secret_key)
+```
+
+```java
+// JWT generation
+@Service
+public class JwtService {
+
+    private static final String SECRET = "my-secret-key-which-should-be-very-long";
+
+    public String generateToken(String username, String role) {
+        return Jwts.builder()
+                .setSubject(username)
+                .claim("role", role)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + 86400000)) // 24h
+                .signWith(SignatureAlgorithm.HS256, SECRET)
+                .compact();
+    }
+
+    public String extractUsername(String token) {
+        return Jwts.parser()
+                .setSigningKey(SECRET)
+                .parseClaimsJws(token)
+                .getBody()
+                .getSubject();
+    }
+
+    public boolean isTokenValid(String token) {
+        try {
+            Jwts.parser().setSigningKey(SECRET).parseClaimsJws(token);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+}
+```
+
+| Pros | Cons |
+|------|------|
+| Stateless — no server-side storage | Cannot revoke token (until it expires) |
+| Scales perfectly in microservices | Token size larger than session ID |
+| Any service can validate independently | Sensitive data in payload (base64, not encrypted) |
+| Works across domains (CORS-friendly) | Must handle token refresh |
+
+**Use case:** Microservices, REST APIs, Mobile apps
+
+---
+
+**4. OAuth 2.0 — Third-Party Authentication**
+
+```
+"Login with Google" / "Login with GitHub"
+
+User                    Your App               Google
+  │── "Login with Google" ──>│                    │
+  │                          │── redirect ───────>│
+  │<── Google login page ────│                    │
+  │── enter Google creds ────│──────────────────>│
+  │                          │                    │ validates
+  │                          │<── auth code ──────│
+  │                          │── exchange code ──>│
+  │                          │<── access token ───│
+  │                          │── GET /userinfo ──>│
+  │                          │<── user profile ───│
+  │<── logged in! ──────────│                    │
+```
+
+**OAuth 2.0 Roles:**
+
+| Role | What | Example |
+|------|------|---------|
+| **Resource Owner** | The user | You (the person) |
+| **Client** | App requesting access | Your Spring Boot app |
+| **Authorization Server** | Issues tokens | Google, GitHub, Keycloak |
+| **Resource Server** | Has protected data | Google's user profile API |
+
+```java
+// Spring Boot OAuth2 login config
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.oauth2Login(oauth2 -> oauth2
+                .loginPage("/login")
+                .defaultSuccessUrl("/dashboard")
+            )
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/login", "/public/**").permitAll()
+                .anyRequest().authenticated()
+            );
+        return http.build();
+    }
+}
+```
+
+```yaml
+# application.yml
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: your-google-client-id
+            client-secret: your-google-client-secret
+            scope: openid, profile, email
+```
+
+---
+
+**Security Type Comparison:**
+
+| Type | Stateless? | Best For | Scalability |
+|------|-----------|----------|-------------|
+| Basic Auth | Yes | Internal APIs, simple scripts | Good |
+| Session-Based | No (server stores session) | Monolith web apps | Poor (sticky sessions) |
+| JWT | Yes | Microservices, REST APIs | Excellent |
+| OAuth 2.0 | Yes | "Login with Google/GitHub" | Excellent |
+| API Key | Yes | Service-to-service, public APIs | Good |
+
+---
+
+## 8.6 Common Microservice Problems & Solutions
+
+### Problem 1: Service-to-Service Failure (Cascading Failure)
+
+```
+Order Service → calls User Service → calls Address Service
+                                          ↓
+                                     Address Service is DOWN!
+                                          ↓
+                                     User Service hangs waiting...
+                                          ↓
+                                     Order Service hangs waiting...
+                                          ↓
+                                     ALL services become unresponsive!
+```
+
+**Solution: Circuit Breaker Pattern (Resilience4j)**
+
+```java
+@Service
+public class OrderService {
+
+    @CircuitBreaker(name = "userService", fallbackMethod = "getUserFallback")
+    @Retry(name = "userService", fallbackMethod = "getUserFallback")
+    public UserDTO getUser(Long userId) {
+        return userClient.getUserById(userId);
+    }
+
+    // Fallback when User Service is down
+    public UserDTO getUserFallback(Long userId, Exception ex) {
+        return new UserDTO(userId, "Unknown User", "N/A");
+    }
+}
+```
+
+```
+Circuit Breaker States:
+                                   failure threshold exceeded
+CLOSED ──────────────────────────────────> OPEN
+(normal, requests pass through)           (requests fail fast, return fallback)
+                                               │
+                                               │ wait duration expires
+                                               ▼
+                                          HALF-OPEN
+                                          (allow few test requests)
+                                          ┌────┴────┐
+                                    success│         │failure
+                                          ▼         ▼
+                                       CLOSED     OPEN
+```
+
+---
+
+### Problem 2: Distributed Transactions
+
+```
+Place Order Flow:
+  1. Order Service  → Create order in Order DB        ✓
+  2. Payment Service → Charge payment in Payment DB   ✓
+  3. Inventory Service → Reduce stock in Inventory DB ✗ (FAILS!)
+
+Problem: Order created, payment charged, but stock not updated!
+         Data is INCONSISTENT across services!
+```
+
+**Solution: SAGA Pattern**
+
+```
+Choreography SAGA (event-based):
+
+Order Service          Payment Service         Inventory Service
+     │                      │                       │
+     │── OrderCreated ─────>│                       │
+     │                      │── PaymentCharged ────>│
+     │                      │                       │── StockReduced ──> Done!
+     │                      │                       │
+     │                      │   If stock fails:     │
+     │                      │<── StockFailed ───────│
+     │<── RefundIssued ─────│                       │
+     │── OrderCancelled     │                       │
+
+Each step publishes an event. If a step fails,
+compensating events undo previous steps.
+```
+
+```java
+// Order Service listens for payment result
+@KafkaListener(topics = "payment-events")
+public void handlePaymentEvent(PaymentEvent event) {
+    if (event.getStatus().equals("CHARGED")) {
+        // Payment successful, proceed to inventory
+        kafkaTemplate.send("inventory-events", new InventoryEvent(event.getOrderId(), "REDUCE"));
+    } else if (event.getStatus().equals("FAILED")) {
+        // Payment failed, cancel order
+        orderRepository.updateStatus(event.getOrderId(), "CANCELLED");
+    }
+}
+
+// Inventory Service listens and compensates if needed
+@KafkaListener(topics = "inventory-events")
+public void handleInventoryEvent(InventoryEvent event) {
+    try {
+        inventoryRepository.reduceStock(event.getProductId(), event.getQuantity());
+        kafkaTemplate.send("order-events", new OrderEvent(event.getOrderId(), "COMPLETED"));
+    } catch (InsufficientStockException e) {
+        // Compensate: refund payment
+        kafkaTemplate.send("payment-events", new PaymentEvent(event.getOrderId(), "REFUND"));
+        kafkaTemplate.send("order-events", new OrderEvent(event.getOrderId(), "CANCELLED"));
+    }
+}
+```
+
+---
+
+### Problem 3: N+1 Query Problem (JPA/Hibernate)
+
+```
+// BAD: Fetching 100 users → 1 query for users + 100 queries for orders = 101 queries!
+@Entity
+public class User {
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<Order> orders;
+}
+
+// When you access user.getOrders() in a loop:
+List<User> users = userRepository.findAll();     // 1 query
+for (User u : users) {
+    u.getOrders().size();                        // N queries (one per user!)
+}
+```
+
+**Solutions:**
+
+```java
+// Solution 1: JOIN FETCH (JPQL)
+@Query("SELECT u FROM User u JOIN FETCH u.orders")
+List<User> findAllWithOrders();
+
+// Solution 2: Entity Graph
+@EntityGraph(attributePaths = {"orders"})
+List<User> findAll();
+
+// Solution 3: Batch fetching
+@OneToMany(mappedBy = "user")
+@BatchSize(size = 25)  // Fetches orders in batches of 25
+private List<Order> orders;
+```
+
+---
+
+### Problem 4: Data Consistency Across Services
+
+```
+User Service has user data.
+Order Service needs user name for order display.
+
+Problem: User changes name in User Service,
+         but Order Service still has old name!
+```
+
+**Solutions:**
+- **Event-driven sync** — User Service publishes `UserUpdated` event, Order Service consumes and updates its local copy
+- **API call** — Order Service fetches user data from User Service when needed (adds latency)
+- **CQRS** — Separate read/write models, update read model asynchronously
+
+---
+
+### Problem 5: Service Discovery Failure
+
+```
+Eureka Server goes down → services can't find each other!
+```
+
+**Solutions:**
+- Run multiple Eureka instances (cluster)
+- Client-side caching (Eureka client caches registry)
+- Use DNS-based discovery as fallback
+- Kubernetes provides built-in service discovery
+
+---
+
+### Problem 6: Configuration Management
+
+```
+50 services × 3 environments = 150 configs
+Changing DB password requires redeploying 50 services!
+```
+
+**Solution: Spring Cloud Config + Bus**
+
+```yaml
+# Config Server fetches from Git repo
+spring:
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://github.com/your-org/config-repo
+```
+
+```java
+// Any service reads config from Config Server
+@Value("${database.password}")
+private String dbPassword;  // Fetched from Config Server, not local file
+```
+
+---
+
+### Problem 7: Logging & Tracing Across Services
+
+```
+One user request flows through 5 services.
+Error occurs in Service 4.
+How do you find which request caused it?
+```
+
+**Solution: Distributed Tracing (Micrometer + Zipkin)**
+
+```
+Request hits Gateway:
+  TraceId: abc-123, SpanId: span-1  →  User Service
+  TraceId: abc-123, SpanId: span-2  →  Order Service
+  TraceId: abc-123, SpanId: span-3  →  Payment Service
+
+All logs share the same TraceId → easy to correlate!
+```
+
+```properties
+# application.properties
+management.tracing.sampling.probability=1.0
+management.zipkin.tracing.endpoint=http://localhost:9411/api/v2/spans
+```
+
+---
+
+### Problem 8: API Versioning
+
+```
+User Service v1 returns: { "name": "John" }
+User Service v2 returns: { "firstName": "John", "lastName": "Doe" }
+
+How to support both without breaking existing clients?
+```
+
+**Solutions:**
+
+```java
+// URL versioning (most common)
+@GetMapping("/v1/users/{id}")
+public UserV1DTO getUserV1(@PathVariable Long id) { }
+
+@GetMapping("/v2/users/{id}")
+public UserV2DTO getUserV2(@PathVariable Long id) { }
+
+// Header versioning
+@GetMapping(value = "/users/{id}", headers = "X-API-VERSION=1")
+public UserV1DTO getUserV1(@PathVariable Long id) { }
+```
+
+---
+
+### Common Problems Quick Reference
+
+| Problem | Pattern/Solution |
+|---------|-----------------|
+| Service failure cascading | Circuit Breaker (Resilience4j) |
+| Distributed transactions | SAGA Pattern (choreography/orchestration) |
+| N+1 query | JOIN FETCH, Entity Graph, @BatchSize |
+| Data consistency | Event-driven sync, CQRS |
+| Config management | Spring Cloud Config Server |
+| Service discovery failure | Eureka cluster, client-side caching |
+| Distributed logging | Correlation ID, Zipkin, Micrometer |
+| API versioning | URL versioning, Header versioning |
+| Rate limiting | API Gateway (Spring Cloud Gateway) |
+| Secret management | HashiCorp Vault, AWS Secrets Manager |
+| Slow inter-service calls | Caching (Redis), Async messaging (Kafka) |
+
+---
+
 ## Interview Questions
 
 ### Redis & Caching

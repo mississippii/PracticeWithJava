@@ -8674,3 +8674,356 @@ Composition:    House ◆─── Room           (filled diamond — strong)
 - **Composition** — Object is created **inside** the parent class
 
 ---
+
+## SOLID Principles
+
+> **SOLID** = 5 principles for writing maintainable, scalable, and flexible code.
+
+| Letter | Principle | One-Liner |
+|--------|-----------|-----------|
+| **S** | Single Responsibility | One class = One job |
+| **O** | Open/Closed | Open for extension, closed for modification |
+| **L** | Liskov Substitution | Child classes should be substitutable for parent |
+| **I** | Interface Segregation | Many small interfaces > One fat interface |
+| **D** | Dependency Inversion | Depend on abstractions, not concretions |
+
+**Real-World Analogy: Restaurant Kitchen**
+
+| Principle | Restaurant Analogy |
+|-----------|-------------------|
+| **S** - Single Responsibility | Chef cooks, waiter serves, cashier bills - everyone has ONE job |
+| **O** - Open/Closed | Add new dishes to menu without changing the kitchen |
+| **L** - Liskov Substitution | Any chef can replace another chef for the same task |
+| **I** - Interface Segregation | Waiter doesn't need to know cooking, chef doesn't need billing |
+| **D** - Dependency Inversion | Kitchen depends on "ingredients" concept, not specific vendors |
+
+---
+
+### S - Single Responsibility Principle (SRP)
+
+> **"A class should have only one reason to change."**
+
+**Bad — Violates SRP:**
+
+```java
+public class Employee {
+    private String name;
+    private double salary;
+
+    public String getName() { return name; }
+    public double getSalary() { return salary; }
+
+    // Responsibility 2: Salary calculation (should be separate)
+    public double calculateTax() {
+        return salary * 0.3;
+    }
+
+    // Responsibility 3: Database operations (should be separate)
+    public void saveToDatabase() {
+        System.out.println("Saving to database...");
+    }
+
+    // Responsibility 4: Report generation (should be separate)
+    public void generatePayslip() {
+        System.out.println("Generating payslip...");
+    }
+}
+```
+
+**Good — Follows SRP:**
+
+```java
+// Responsibility 1: Employee data only
+public class Employee {
+    private String name;
+    private double salary;
+
+    public Employee(String name, double salary) {
+        this.name = name;
+        this.salary = salary;
+    }
+
+    public String getName() { return name; }
+    public double getSalary() { return salary; }
+}
+
+// Responsibility 2: Tax calculations
+public class TaxCalculator {
+    public double calculateTax(Employee employee) {
+        return employee.getSalary() * 0.3;
+    }
+}
+
+// Responsibility 3: Database operations
+public class EmployeeRepository {
+    public void save(Employee employee) {
+        System.out.println("Saving " + employee.getName() + " to database");
+    }
+}
+
+// Responsibility 4: Report generation
+public class PayslipGenerator {
+    public void generate(Employee employee) {
+        System.out.println("Generating payslip for " + employee.getName());
+    }
+}
+```
+
+---
+
+### O - Open/Closed Principle (OCP)
+
+> **"Software entities should be open for extension but closed for modification."**
+
+**Bad — Violates OCP:**
+
+```java
+public class PaymentProcessor {
+    public void processPayment(String paymentType, double amount) {
+        if (paymentType.equals("CREDIT_CARD")) {
+            System.out.println("Processing credit card: $" + amount);
+        } else if (paymentType.equals("PAYPAL")) {
+            System.out.println("Processing PayPal: $" + amount);
+        }
+        // Adding new payment? Must modify this class!
+    }
+}
+```
+
+**Good — Follows OCP:**
+
+```java
+public interface PaymentMethod {
+    void pay(double amount);
+}
+
+public class CreditCardPayment implements PaymentMethod {
+    @Override
+    public void pay(double amount) {
+        System.out.println("Processing credit card: $" + amount);
+    }
+}
+
+public class PayPalPayment implements PaymentMethod {
+    @Override
+    public void pay(double amount) {
+        System.out.println("Processing PayPal: $" + amount);
+    }
+}
+
+// Adding Crypto? Just create new class — NO modification to existing code!
+public class CryptoPayment implements PaymentMethod {
+    @Override
+    public void pay(double amount) {
+        System.out.println("Processing crypto: $" + amount);
+    }
+}
+
+public class PaymentProcessor {
+    public void processPayment(PaymentMethod method, double amount) {
+        method.pay(amount);  // Works with ANY payment type
+    }
+}
+```
+
+---
+
+### L - Liskov Substitution Principle (LSP)
+
+> **"Objects of a superclass should be replaceable with objects of its subclasses without breaking the program."**
+
+**Bad — Violates LSP:**
+
+```java
+public class Bird {
+    public void fly() { System.out.println("Flying..."); }
+}
+
+public class Penguin extends Bird {
+    @Override
+    public void fly() {
+        throw new UnsupportedOperationException("Penguins can't fly!");
+    }
+}
+
+// Code that expects Bird to fly will CRASH with Penguin
+```
+
+**Good — Follows LSP:**
+
+```java
+public interface Flyable {
+    void fly();
+}
+
+public abstract class Bird {
+    public abstract void eat();
+}
+
+public class Sparrow extends Bird implements Flyable {
+    @Override
+    public void fly() { System.out.println("Sparrow flying!"); }
+    @Override
+    public void eat() { System.out.println("Eating seeds"); }
+}
+
+public class Penguin extends Bird {
+    // No fly method — Penguin doesn't claim to fly
+    @Override
+    public void eat() { System.out.println("Eating fish"); }
+    public void swim() { System.out.println("Swimming!"); }
+}
+```
+
+**Classic Example — Rectangle & Square:**
+
+```java
+// BAD: Square extends Rectangle breaks area calculation
+// GOOD: Both implement Shape interface
+public interface Shape {
+    int getArea();
+}
+
+public class Rectangle implements Shape {
+    private final int width, height;
+    public Rectangle(int w, int h) { this.width = w; this.height = h; }
+    public int getArea() { return width * height; }
+}
+
+public class Square implements Shape {
+    private final int side;
+    public Square(int s) { this.side = s; }
+    public int getArea() { return side * side; }
+}
+```
+
+---
+
+### I - Interface Segregation Principle (ISP)
+
+> **"Clients should not be forced to depend on interfaces they don't use."**
+
+**Bad — Fat Interface:**
+
+```java
+public interface Worker {
+    void work();
+    void eat();
+    void sleep();
+    void writeCode();
+    void manageTeam();
+}
+
+// Robot forced to implement eat() and sleep() — makes no sense!
+public class Robot implements Worker {
+    public void work() { System.out.println("Working 24/7..."); }
+    public void eat() { throw new UnsupportedOperationException(); }
+    public void sleep() { throw new UnsupportedOperationException(); }
+    public void writeCode() { throw new UnsupportedOperationException(); }
+    public void manageTeam() { throw new UnsupportedOperationException(); }
+}
+```
+
+**Good — Segregated Interfaces:**
+
+```java
+public interface Workable { void work(); }
+public interface Eatable { void eat(); }
+public interface Sleepable { void sleep(); }
+public interface Codeable { void writeCode(); }
+public interface Manageable { void manageTeam(); }
+
+public class Developer implements Workable, Eatable, Sleepable, Codeable {
+    public void work() { System.out.println("Working..."); }
+    public void eat() { System.out.println("Eating..."); }
+    public void sleep() { System.out.println("Sleeping..."); }
+    public void writeCode() { System.out.println("Coding..."); }
+}
+
+public class Robot implements Workable {
+    public void work() { System.out.println("Working 24/7..."); }
+}
+```
+
+---
+
+### D - Dependency Inversion Principle (DIP)
+
+> **"High-level modules should not depend on low-level modules. Both should depend on abstractions."**
+
+**Bad — Violates DIP:**
+
+```java
+public class MySQLDatabase {
+    public void save(String data) { System.out.println("Saving to MySQL"); }
+}
+
+public class UserService {
+    private MySQLDatabase database = new MySQLDatabase();  // Tight coupling!
+
+    public void createUser(String name) {
+        database.save(name);
+    }
+    // Want PostgreSQL? Must modify UserService!
+}
+```
+
+**Good — Follows DIP:**
+
+```java
+public interface Database {
+    void save(String data);
+}
+
+public class MySQLDatabase implements Database {
+    public void save(String data) { System.out.println("Saving to MySQL"); }
+}
+
+public class PostgreSQLDatabase implements Database {
+    public void save(String data) { System.out.println("Saving to PostgreSQL"); }
+}
+
+public class UserService {
+    private Database database;  // Depends on abstraction!
+
+    public UserService(Database database) {
+        this.database = database;  // Injected from outside
+    }
+
+    public void createUser(String name) {
+        database.save(name);
+    }
+}
+
+// Swap easily — NO changes to UserService
+UserService service1 = new UserService(new MySQLDatabase());
+UserService service2 = new UserService(new PostgreSQLDatabase());
+```
+
+**DIP in Spring Boot:**
+
+```java
+@Service
+public class UserService {
+    private final UserRepository repository;  // Interface!
+
+    @Autowired  // Spring injects the implementation automatically
+    public UserService(UserRepository repository) {
+        this.repository = repository;
+    }
+}
+```
+
+---
+
+### SOLID Summary
+
+| Violation | Symptom | Fix |
+|-----------|---------|-----|
+| SRP | God classes, >500 lines | Split into smaller classes |
+| OCP | Long if-else/switch chains | Use polymorphism + interfaces |
+| LSP | Subclass throws exceptions | Rethink inheritance hierarchy |
+| ISP | Empty method implementations | Break into smaller interfaces |
+| DIP | `new` keyword everywhere | Use dependency injection |
+
+---
