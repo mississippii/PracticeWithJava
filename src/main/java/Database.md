@@ -4413,40 +4413,713 @@ GROUP BY dept_id;
 
 **3. Window / Analytic Functions** — Like aggregate but keep ALL rows
 
-Window functions perform calculations across a **set of rows related to the current row** without collapsing them into one.
+Window functions perform calculations across a **set of rows related to the current row** without collapsing them into one. Available in **MySQL 8.0+**.
+
+### Window Function Syntax
 
 ```sql
+function_name() OVER (
+    [PARTITION BY column]        -- Divide rows into groups (optional)
+    [ORDER BY column]            -- Sort within each group
+    [ROWS/RANGE BETWEEN ... ]   -- Define frame (optional)
+)
+```
+
+```
+How OVER() clause works:
+════════════════════════
+
+employees table:
+┌──────┬────────────┬────────┐
+│ name │ department │ salary │
+├──────┼────────────┼────────┤
+│ John │ IT         │ 70000  │    PARTITION BY department
+│ Jane │ IT         │ 80000  │    → groups: IT, HR, Sales
+│ Bob  │ HR         │ 60000  │
+│ Sara │ HR         │ 65000  │    ORDER BY salary DESC
+│ Tom  │ Sales      │ 55000  │    → sorts within each group
+│ Amy  │ Sales      │ 50000  │
+└──────┴────────────┴────────┘
+
+PARTITION BY department ORDER BY salary DESC:
+  IT group:    Jane(80k), John(70k)
+  HR group:    Sara(65k), Bob(60k)
+  Sales group: Tom(55k),  Amy(50k)
+```
+
+---
+
+### Category 1: Ranking Functions
+
+---
+
+#### 1. ROW_NUMBER()
+
+Assigns a **unique sequential number** to each row within a partition. No ties — even if values are the same, each row gets a different number.
+
+```sql
+-- Basic: Number all employees by salary (highest first)
 SELECT
-    name,
-    department,
-    salary,
-    -- Ranking
-    ROW_NUMBER() OVER (ORDER BY salary DESC) AS row_num,
-    RANK()       OVER (ORDER BY salary DESC) AS rank,
-    DENSE_RANK() OVER (ORDER BY salary DESC) AS dense_rank,
-
-    -- Aggregates as window
-    SUM(salary)  OVER (PARTITION BY department) AS dept_total,
-    AVG(salary)  OVER (PARTITION BY department) AS dept_avg,
-    COUNT(*)     OVER (PARTITION BY department) AS dept_count,
-
-    -- Navigation
-    LAG(salary, 1)  OVER (ORDER BY salary) AS prev_salary,
-    LEAD(salary, 1) OVER (ORDER BY salary) AS next_salary,
-    FIRST_VALUE(name) OVER (PARTITION BY department ORDER BY salary DESC) AS top_earner,
-
-    -- Running total
-    SUM(salary) OVER (ORDER BY hire_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total
+    name, department, salary,
+    ROW_NUMBER() OVER (ORDER BY salary DESC) AS row_num
 FROM employees;
 ```
 
-**Window Functions Summary:**
+```
+Result:
+┌──────┬────────────┬────────┬─────────┐
+│ name │ department │ salary │ row_num │
+├──────┼────────────┼────────┼─────────┤
+│ Jane │ IT         │ 80000  │    1    │
+│ John │ IT         │ 70000  │    2    │
+│ Sara │ HR         │ 65000  │    3    │
+│ Bob  │ HR         │ 60000  │    4    │  ← Always unique, no ties
+│ Tom  │ Sales      │ 55000  │    5    │
+│ Amy  │ Sales      │ 50000  │    6    │
+└──────┴────────────┴────────┴─────────┘
+```
 
-| Category | Functions | Purpose |
-|----------|-----------|---------|
-| **Ranking** | `ROW_NUMBER()`, `RANK()`, `DENSE_RANK()`, `NTILE()` | Assign rank/position |
-| **Aggregate** | `SUM()`, `AVG()`, `COUNT()`, `MAX()`, `MIN()` over window | Group calc without collapsing |
-| **Navigation** | `LAG()`, `LEAD()`, `FIRST_VALUE()`, `LAST_VALUE()`, `NTH_VALUE()` | Access other rows |
+```sql
+-- With PARTITION BY: Number within each department
+SELECT
+    name, department, salary,
+    ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) AS dept_row
+FROM employees;
+```
+
+```
+Result:
+┌──────┬────────────┬────────┬──────────┐
+│ name │ department │ salary │ dept_row │
+├──────┼────────────┼────────┼──────────┤
+│ Sara │ HR         │ 65000  │    1     │  ← HR group resets to 1
+│ Bob  │ HR         │ 60000  │    2     │
+│ Jane │ IT         │ 80000  │    1     │  ← IT group resets to 1
+│ John │ IT         │ 70000  │    2     │
+│ Tom  │ Sales      │ 55000  │    1     │  ← Sales group resets to 1
+│ Amy  │ Sales      │ 50000  │    2     │
+└──────┴────────────┴────────┴──────────┘
+```
+
+**When to use:**
+- Pagination (`WHERE row_num BETWEEN 11 AND 20`)
+- Remove duplicates (keep only `row_num = 1`)
+- Top-N per group (`WHERE dept_row <= 3`)
+
+```sql
+-- Real use case: Remove duplicate emails (keep earliest ID)
+DELETE FROM users
+WHERE id NOT IN (
+    SELECT id FROM (
+        SELECT id, ROW_NUMBER() OVER (PARTITION BY email ORDER BY id) AS rn
+        FROM users
+    ) t WHERE rn = 1
+);
+
+-- Real use case: Pagination (get page 3, 10 items per page)
+SELECT * FROM (
+    SELECT *, ROW_NUMBER() OVER (ORDER BY created_at DESC) AS rn
+    FROM products
+) t WHERE rn BETWEEN 21 AND 30;
+```
+
+---
+
+#### 2. RANK()
+
+Assigns a rank to each row. **Ties get the same rank**, but the next rank is **skipped**.
+
+```sql
+SELECT
+    name, salary,
+    RANK() OVER (ORDER BY salary DESC) AS rank_num
+FROM employees;
+```
+
+```
+Result (notice: John and Sara both earn 65000):
+┌──────┬────────┬──────────┐
+│ name │ salary │ rank_num │
+├──────┼────────┼──────────┤
+│ Jane │ 80000  │    1     │
+│ John │ 65000  │    2     │  ← Same salary = same rank
+│ Sara │ 65000  │    2     │  ← Same salary = same rank
+│ Bob  │ 60000  │    4     │  ← Rank 3 is SKIPPED!
+│ Tom  │ 55000  │    5     │
+│ Amy  │ 50000  │    6     │
+└──────┴────────┴──────────┘
+```
+
+**When to use:**
+- Competition rankings (sports, leaderboards)
+- When gaps in rank matter (2nd place, then 4th — no 3rd)
+
+```sql
+-- Real use case: Top 3 highest paid per department
+SELECT * FROM (
+    SELECT
+        name, department, salary,
+        RANK() OVER (PARTITION BY department ORDER BY salary DESC) AS dept_rank
+    FROM employees
+) t WHERE dept_rank <= 3;
+```
+
+---
+
+#### 3. DENSE_RANK()
+
+Like `RANK()`, ties get the same rank — but the next rank is **NOT skipped**.
+
+```sql
+SELECT
+    name, salary,
+    DENSE_RANK() OVER (ORDER BY salary DESC) AS dense_rank_num
+FROM employees;
+```
+
+```
+Result:
+┌──────┬────────┬────────────────┐
+│ name │ salary │ dense_rank_num │
+├──────┼────────┼────────────────┤
+│ Jane │ 80000  │       1        │
+│ John │ 65000  │       2        │  ← Same salary = same rank
+│ Sara │ 65000  │       2        │  ← Same salary = same rank
+│ Bob  │ 60000  │       3        │  ← Next is 3, NOT skipped!
+│ Tom  │ 55000  │       4        │
+│ Amy  │ 50000  │       5        │
+└──────┴────────┴────────────────┘
+```
+
+**When to use:**
+- Find Nth highest salary (classic interview question!)
+- When you want consecutive ranks without gaps
+
+```sql
+-- Classic interview Q: Find the 2nd highest salary
+SELECT DISTINCT salary FROM (
+    SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk
+    FROM employees
+) t WHERE rnk = 2;
+
+-- Find Nth highest salary per department
+SELECT * FROM (
+    SELECT
+        name, department, salary,
+        DENSE_RANK() OVER (PARTITION BY department ORDER BY salary DESC) AS rnk
+    FROM employees
+) t WHERE rnk = 2;    -- 2nd highest in each department
+```
+
+---
+
+#### ROW_NUMBER vs RANK vs DENSE_RANK — Side by Side
+
+```
+Data: salaries = 80000, 65000, 65000, 60000, 55000
+
+ROW_NUMBER():   1,  2,  3,  4,  5    ← Always unique, no ties
+RANK():         1,  2,  2,  4,  5    ← Ties get same rank, SKIPS next
+DENSE_RANK():   1,  2,  2,  3,  4    ← Ties get same rank, NO skip
+```
+
+| Function | Ties? | Gaps? | Use When |
+|----------|-------|-------|----------|
+| `ROW_NUMBER()` | No ties (always unique) | No gaps | Pagination, dedup, unique row ID |
+| `RANK()` | Same rank for ties | Yes (skips) | Competition ranking |
+| `DENSE_RANK()` | Same rank for ties | No gaps | Nth highest/lowest queries |
+
+---
+
+#### 4. NTILE(n)
+
+Divides the result set into **n roughly equal groups** (buckets) and assigns a bucket number (1 to n) to each row.
+
+```sql
+-- Divide employees into 4 salary quartiles
+SELECT
+    name, salary,
+    NTILE(4) OVER (ORDER BY salary DESC) AS quartile
+FROM employees;
+```
+
+```
+Result (8 employees divided into 4 groups of 2):
+┌──────┬────────┬──────────┐
+│ name │ salary │ quartile │
+├──────┼────────┼──────────┤
+│ Jane │ 90000  │    1     │  ← Top 25% (highest paid)
+│ John │ 80000  │    1     │
+│ Sara │ 70000  │    2     │  ← 25-50%
+│ Bob  │ 65000  │    2     │
+│ Tom  │ 60000  │    3     │  ← 50-75%
+│ Amy  │ 55000  │    3     │
+│ Dan  │ 50000  │    4     │  ← Bottom 25% (lowest paid)
+│ Eva  │ 45000  │    4     │
+└──────┴────────┴──────────┘
+```
+
+**When to use:**
+- Divide into percentiles/quartiles for analysis
+- Create salary bands or performance tiers
+- Split data into equal groups for A/B testing
+
+```sql
+-- Real use case: Classify customers into 3 tiers based on spending
+SELECT
+    customer_name, total_spent,
+    CASE NTILE(3) OVER (ORDER BY total_spent DESC)
+        WHEN 1 THEN 'Gold'
+        WHEN 2 THEN 'Silver'
+        WHEN 3 THEN 'Bronze'
+    END AS tier
+FROM customers;
+```
+
+---
+
+### Category 2: Value / Navigation Functions
+
+---
+
+#### 5. LAG(column, offset, default)
+
+Accesses the value from a **previous row** (looks backward). `offset` = how many rows back (default 1). `default` = value if no previous row exists (default NULL).
+
+```sql
+SELECT
+    month, revenue,
+    LAG(revenue, 1, 0) OVER (ORDER BY month) AS prev_month_revenue,
+    revenue - LAG(revenue, 1, 0) OVER (ORDER BY month) AS month_over_month_change
+FROM monthly_sales;
+```
+
+```
+Result:
+┌───────┬─────────┬────────────────────┬──────────────────────┐
+│ month │ revenue │ prev_month_revenue │ month_over_month     │
+├───────┼─────────┼────────────────────┼──────────────────────┤
+│ Jan   │ 10000   │     0              │  10000 (no prev)     │
+│ Feb   │ 12000   │  10000 ←(Jan)      │   2000 (grew!)       │
+│ Mar   │ 11000   │  12000 ←(Feb)      │  -1000 (dropped)     │
+│ Apr   │ 15000   │  11000 ←(Mar)      │   4000 (grew!)       │
+└───────┴─────────┴────────────────────┴──────────────────────┘
+```
+
+**When to use:**
+- Month-over-month / year-over-year comparisons
+- Calculate difference from previous row
+- Detect changes (previous value vs current value)
+
+```sql
+-- Real use case: Find employees whose salary changed
+SELECT * FROM (
+    SELECT
+        employee_id, effective_date, salary,
+        LAG(salary) OVER (PARTITION BY employee_id ORDER BY effective_date) AS prev_salary
+    FROM salary_history
+) t WHERE salary != prev_salary;
+
+-- LAG with offset 2: compare with 2 rows back
+SELECT
+    month, revenue,
+    LAG(revenue, 2) OVER (ORDER BY month) AS two_months_ago
+FROM monthly_sales;
+```
+
+---
+
+#### 6. LEAD(column, offset, default)
+
+Accesses the value from a **next row** (looks forward). Opposite of LAG.
+
+```sql
+SELECT
+    name, salary,
+    LEAD(salary, 1) OVER (ORDER BY salary DESC) AS next_lower_salary,
+    salary - LEAD(salary, 1, 0) OVER (ORDER BY salary DESC) AS gap_to_next
+FROM employees;
+```
+
+```
+Result:
+┌──────┬────────┬───────────────────┬────────────┐
+│ name │ salary │ next_lower_salary │ gap_to_next│
+├──────┼────────┼───────────────────┼────────────┤
+│ Jane │ 80000  │  70000 →(John)    │   10000    │
+│ John │ 70000  │  65000 →(Sara)    │    5000    │
+│ Sara │ 65000  │  60000 →(Bob)     │    5000    │
+│ Bob  │ 60000  │  55000 →(Tom)     │    5000    │
+│ Tom  │ 55000  │  NULL (no next)   │   55000    │
+└──────┴────────┴───────────────────┴────────────┘
+```
+
+**When to use:**
+- Predict/preview next value
+- Calculate time between events
+- Find gaps between consecutive records
+
+```sql
+-- Real use case: Calculate days between consecutive orders
+SELECT
+    order_id, order_date,
+    LEAD(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) AS next_order_date,
+    DATEDIFF(
+        LEAD(order_date) OVER (PARTITION BY customer_id ORDER BY order_date),
+        order_date
+    ) AS days_until_next_order
+FROM orders;
+```
+
+---
+
+#### 7. FIRST_VALUE(column)
+
+Returns the **first value** in the window frame. Useful to compare every row against the first row.
+
+```sql
+SELECT
+    name, department, salary,
+    FIRST_VALUE(name) OVER (
+        PARTITION BY department ORDER BY salary DESC
+    ) AS highest_paid_in_dept,
+    FIRST_VALUE(salary) OVER (
+        PARTITION BY department ORDER BY salary DESC
+    ) AS top_salary,
+    salary - FIRST_VALUE(salary) OVER (
+        PARTITION BY department ORDER BY salary DESC
+    ) AS diff_from_top
+FROM employees;
+```
+
+```
+Result:
+┌──────┬────────────┬────────┬─────────────────────┬────────────┬───────────────┐
+│ name │ department │ salary │ highest_paid_in_dept│ top_salary │ diff_from_top │
+├──────┼────────────┼────────┼─────────────────────┼────────────┼───────────────┤
+│ Jane │ IT         │ 80000  │ Jane                │ 80000      │      0        │
+│ John │ IT         │ 70000  │ Jane                │ 80000      │  -10000       │
+│ Sara │ HR         │ 65000  │ Sara                │ 65000      │      0        │
+│ Bob  │ HR         │ 60000  │ Sara                │ 65000      │   -5000       │
+└──────┴────────────┴────────┴─────────────────────┴────────────┴───────────────┘
+```
+
+**When to use:**
+- Compare every row to the top/first value in its group
+- Show the department leader alongside each employee
+- Calculate percentage of max
+
+---
+
+#### 8. LAST_VALUE(column)
+
+Returns the **last value** in the window frame.
+
+**Important:** By default the window frame is `RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`, so `LAST_VALUE` only sees up to the current row. You MUST specify the full frame to get the actual last value.
+
+```sql
+SELECT
+    name, department, salary,
+    LAST_VALUE(name) OVER (
+        PARTITION BY department ORDER BY salary DESC
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING    -- ← MUST add this!
+    ) AS lowest_paid_in_dept,
+    LAST_VALUE(salary) OVER (
+        PARTITION BY department ORDER BY salary DESC
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+    ) AS lowest_salary
+FROM employees;
+```
+
+```
+Result:
+┌──────┬────────────┬────────┬──────────────────────┬────────────────┐
+│ name │ department │ salary │ lowest_paid_in_dept  │ lowest_salary  │
+├──────┼────────────┼────────┼──────────────────────┼────────────────┤
+│ Jane │ IT         │ 80000  │ John                 │ 70000          │
+│ John │ IT         │ 70000  │ John                 │ 70000          │
+│ Sara │ HR         │ 65000  │ Bob                  │ 60000          │
+│ Bob  │ HR         │ 60000  │ Bob                  │ 60000          │
+└──────┴────────────┴────────┴──────────────────────┴────────────────┘
+```
+
+**When to use:**
+- Compare every row to the last/lowest value in its group
+- Find the range (first to last) within a partition
+
+**Common mistake:** Forgetting `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING` — without it, `LAST_VALUE` returns the current row itself!
+
+---
+
+#### 9. NTH_VALUE(column, n)
+
+Returns the value from the **Nth row** in the window frame.
+
+```sql
+SELECT
+    name, department, salary,
+    NTH_VALUE(name, 1) OVER (
+        PARTITION BY department ORDER BY salary DESC
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+    ) AS first_highest,
+    NTH_VALUE(name, 2) OVER (
+        PARTITION BY department ORDER BY salary DESC
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+    ) AS second_highest,
+    NTH_VALUE(name, 3) OVER (
+        PARTITION BY department ORDER BY salary DESC
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+    ) AS third_highest
+FROM employees;
+```
+
+```
+Result:
+┌──────┬────────────┬────────┬───────────────┬────────────────┬───────────────┐
+│ name │ department │ salary │ first_highest │ second_highest │ third_highest │
+├──────┼────────────┼────────┼───────────────┼────────────────┼───────────────┤
+│ Jane │ IT         │ 80000  │ Jane          │ John           │ Tom           │
+│ John │ IT         │ 70000  │ Jane          │ John           │ Tom           │
+│ Tom  │ IT         │ 60000  │ Jane          │ John           │ Tom           │
+│ Sara │ HR         │ 65000  │ Sara          │ Bob            │ NULL          │
+│ Bob  │ HR         │ 60000  │ Sara          │ Bob            │ NULL          │
+└──────┴────────────┴────────┴───────────────┴────────────────┴───────────────┘
+```
+
+**When to use:**
+- Get the 2nd, 3rd, Nth value without subqueries
+- Compare each row against a specific position in the group
+
+**Note:** Like `LAST_VALUE`, always include `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING` to see all rows in the partition.
+
+---
+
+### Category 3: Distribution Functions
+
+---
+
+#### 10. PERCENT_RANK()
+
+Returns the **relative rank as a percentage** (0 to 1). Formula: `(rank - 1) / (total_rows - 1)`.
+
+```sql
+SELECT
+    name, salary,
+    RANK() OVER (ORDER BY salary) AS rank_num,
+    PERCENT_RANK() OVER (ORDER BY salary) AS pct_rank
+FROM employees;
+```
+
+```
+Result (5 employees):
+┌──────┬────────┬──────────┬──────────────────────────────┐
+│ name │ salary │ rank_num │ pct_rank                     │
+├──────┼────────┼──────────┼──────────────────────────────┤
+│ Amy  │ 50000  │    1     │ 0.00  (1-1)/(5-1) = 0/4     │
+│ Tom  │ 55000  │    2     │ 0.25  (2-1)/(5-1) = 1/4     │
+│ Bob  │ 60000  │    3     │ 0.50  (3-1)/(5-1) = 2/4     │
+│ Sara │ 65000  │    4     │ 0.75  (4-1)/(5-1) = 3/4     │
+│ Jane │ 80000  │    5     │ 1.00  (5-1)/(5-1) = 4/4     │
+└──────┴────────┴──────────┴──────────────────────────────┘
+```
+
+**When to use:**
+- Find what percentile a value falls in
+- Statistical analysis and distribution
+- "This employee earns more than 75% of all employees"
+
+---
+
+#### 11. CUME_DIST()
+
+Returns the **cumulative distribution** — the fraction of rows with values <= the current row's value. Formula: `(number of rows with value <= current) / total_rows`.
+
+```sql
+SELECT
+    name, salary,
+    CUME_DIST() OVER (ORDER BY salary) AS cumulative_dist
+FROM employees;
+```
+
+```
+Result (5 employees):
+┌──────┬────────┬──────────────────────────────────┐
+│ name │ salary │ cumulative_dist                  │
+├──────┼────────┼──────────────────────────────────┤
+│ Amy  │ 50000  │ 0.20  (1 row  <= 50000) / 5     │
+│ Tom  │ 55000  │ 0.40  (2 rows <= 55000) / 5     │
+│ Bob  │ 60000  │ 0.60  (3 rows <= 60000) / 5     │
+│ Sara │ 65000  │ 0.80  (4 rows <= 65000) / 5     │
+│ Jane │ 80000  │ 1.00  (5 rows <= 80000) / 5     │
+└──────┴────────┴──────────────────────────────────┘
+```
+
+**When to use:**
+- "What % of employees earn <= this salary?"
+- Cumulative percentage calculations
+- Find the top 20% (CUME_DIST > 0.80)
+
+```sql
+-- Real use case: Find top 20% earners
+SELECT * FROM (
+    SELECT name, salary,
+        CUME_DIST() OVER (ORDER BY salary DESC) AS cume
+    FROM employees
+) t WHERE cume <= 0.20;
+```
+
+#### PERCENT_RANK vs CUME_DIST
+
+| Function | Formula | First Row | Last Row | Meaning |
+|----------|---------|-----------|----------|---------|
+| `PERCENT_RANK()` | (rank-1) / (total-1) | Always 0 | Always 1 | Relative position (0-1) |
+| `CUME_DIST()` | rows_with_value_<= / total | > 0 | Always 1 | Fraction of rows at or below |
+
+---
+
+### Category 4: Aggregate Functions as Window Functions
+
+Any aggregate function (`SUM`, `AVG`, `COUNT`, `MAX`, `MIN`) can be used as a window function by adding `OVER()`.
+
+---
+
+#### 12. SUM() OVER — Running Total
+
+```sql
+SELECT
+    order_date, amount,
+    SUM(amount) OVER (ORDER BY order_date) AS running_total,
+    SUM(amount) OVER (PARTITION BY customer_id ORDER BY order_date) AS customer_running_total,
+    SUM(amount) OVER () AS grand_total    -- No ORDER BY = total of all rows
+FROM orders;
+```
+
+```
+Result:
+┌────────────┬────────┬───────────────┬─────────────┐
+│ order_date │ amount │ running_total │ grand_total │
+├────────────┼────────┼───────────────┼─────────────┤
+│ Jan 01     │ 100    │    100        │    550      │
+│ Jan 15     │ 200    │    300        │    550      │
+│ Feb 01     │  50    │    350        │    550      │
+│ Feb 20     │ 150    │    500        │    550      │
+│ Mar 01     │  50    │    550        │    550      │
+└────────────┴────────┴───────────────┴─────────────┘
+```
+
+**When to use:** Running totals, cumulative sums, total alongside each row
+
+---
+
+#### 13. AVG() OVER — Moving Average
+
+```sql
+-- 3-row moving average (current + 2 preceding rows)
+SELECT
+    order_date, amount,
+    AVG(amount) OVER (
+        ORDER BY order_date
+        ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+    ) AS moving_avg_3
+FROM orders;
+```
+
+```
+Result:
+┌────────────┬────────┬───────────────────────────────┐
+│ order_date │ amount │ moving_avg_3                  │
+├────────────┼────────┼───────────────────────────────┤
+│ Jan 01     │ 100    │ 100.00   (only 1 row)        │
+│ Jan 15     │ 200    │ 150.00   (100+200)/2         │
+│ Feb 01     │  50    │ 116.67   (100+200+50)/3      │
+│ Feb 20     │ 150    │ 133.33   (200+50+150)/3      │
+│ Mar 01     │  50    │  83.33   (50+150+50)/3       │
+└────────────┴────────┴───────────────────────────────┘
+```
+
+**When to use:** Smooth out fluctuations, trend analysis, stock price analysis
+
+---
+
+#### 14. COUNT() / MAX() / MIN() OVER
+
+```sql
+SELECT
+    name, department, salary,
+    COUNT(*) OVER (PARTITION BY department) AS dept_headcount,
+    MAX(salary) OVER (PARTITION BY department) AS dept_max_salary,
+    MIN(salary) OVER (PARTITION BY department) AS dept_min_salary,
+    salary - AVG(salary) OVER (PARTITION BY department) AS diff_from_dept_avg
+FROM employees;
+```
+
+**When to use:** Show group-level stats alongside each individual row without a separate GROUP BY query
+
+---
+
+### Window Frame Clause (ROWS vs RANGE)
+
+The frame clause controls **which rows** the window function considers relative to the current row.
+
+```sql
+-- Frame Syntax:
+ROWS BETWEEN <start> AND <end>
+
+-- Start / End options:
+UNBOUNDED PRECEDING     -- From the first row of partition
+N PRECEDING             -- N rows before current
+CURRENT ROW             -- The current row
+N FOLLOWING             -- N rows after current
+UNBOUNDED FOLLOWING     -- To the last row of partition
+```
+
+```
+Visual: Frame types for SUM(salary) with ORDER BY hire_date
+═══════════════════════════════════════════════════════════
+
+ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW  (default for ORDER BY)
+  → Running total: sums all rows from start up to current row
+  [row1] [row2] [row3] [CURRENT] ...
+  ├────── included ─────┤
+
+ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+  → Sliding window of 3 rows
+  ... [row-2] [row-1] [CURRENT] ...
+      ├──── included ──┤
+
+ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING
+  → Current row + 1 before + 1 after
+  ... [row-1] [CURRENT] [row+1] ...
+      ├───── included ────┤
+
+ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+  → ALL rows in partition (needed for LAST_VALUE, NTH_VALUE)
+  [row1] [row2] ... [CURRENT] ... [last_row]
+  ├──────────── included ──────────────────┤
+```
+
+---
+
+### All MySQL Window Functions — Complete Summary
+
+| # | Function | Category | What It Does | Use Case |
+|---|----------|----------|-------------|----------|
+| 1 | `ROW_NUMBER()` | Ranking | Unique sequential number per row | Pagination, dedup, top-N |
+| 2 | `RANK()` | Ranking | Rank with gaps on ties | Competition rankings |
+| 3 | `DENSE_RANK()` | Ranking | Rank without gaps on ties | Nth highest salary |
+| 4 | `NTILE(n)` | Ranking | Divide into n equal buckets | Quartiles, percentile bands |
+| 5 | `LAG(col, n)` | Navigation | Value from n rows BEFORE | Month-over-month comparison |
+| 6 | `LEAD(col, n)` | Navigation | Value from n rows AFTER | Gap analysis, next event |
+| 7 | `FIRST_VALUE(col)` | Navigation | First value in frame | Compare to top/first |
+| 8 | `LAST_VALUE(col)` | Navigation | Last value in frame | Compare to bottom/last |
+| 9 | `NTH_VALUE(col, n)` | Navigation | Nth value in frame | Get specific position value |
+| 10 | `PERCENT_RANK()` | Distribution | Relative rank (0 to 1) | Percentile ranking |
+| 11 | `CUME_DIST()` | Distribution | Cumulative distribution | "Top X%" analysis |
+| 12 | `SUM() OVER` | Aggregate | Sum as window | Running total |
+| 13 | `AVG() OVER` | Aggregate | Average as window | Moving average |
+| 14 | `COUNT() OVER` | Aggregate | Count as window | Group count per row |
+| 15 | `MAX() OVER` | Aggregate | Max as window | Group max per row |
+| 16 | `MIN() OVER` | Aggregate | Min as window | Group min per row |
 
 **Aggregate vs Window Function:**
 

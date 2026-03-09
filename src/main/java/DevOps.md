@@ -8,18 +8,244 @@
 2. [Shell Scripting](#2-shell-scripting)
 3. [Git & Version Control](#3-git--version-control)
 4. [CI/CD — Continuous Integration & Delivery](#4-cicd--continuous-integration--delivery)
-5. [Docker](#5-docker)
-6. [Docker Compose](#6-docker-compose)
-7. [Kubernetes (K8s)](#7-kubernetes-k8s)
-8. [Nginx & Reverse Proxy](#8-nginx--reverse-proxy)
-9. [Monitoring & Logging](#9-monitoring--logging)
-10. [Infrastructure as Code (Terraform)](#10-infrastructure-as-code-terraform)
-11. [Networking for DevOps](#11-networking-for-devops)
-12. [Interview Questions](#12-interview-questions)
+5. [Virtual Machines (VM)](#5-virtual-machines-vm)
+6. [LXC / LXD — System Containers](#6-lxc--lxd--system-containers)
+7. [Docker — Application Containers](#7-docker--application-containers)
+8. [Docker Compose](#8-docker-compose)
+9. [Kubernetes (K8s)](#9-kubernetes-k8s)
+10. [Nginx & Reverse Proxy](#10-nginx--reverse-proxy)
+11. [Monitoring & Logging](#11-monitoring--logging)
+12. [Infrastructure as Code (Terraform)](#12-infrastructure-as-code-terraform)
+13. [Networking for DevOps](#13-networking-for-devops)
+14. [Interview Questions](#14-interview-questions)
 
 ---
 
 ## 1. Linux Basics & Essential Commands
+
+### What is Linux?
+
+Linux is an **open-source operating system kernel** created by Linus Torvalds in 1991. A Linux **distribution (distro)** is a complete OS built on top of the Linux kernel, bundled with package managers, desktop environments, and tools.
+
+### Linux Distribution Family Tree
+
+```
+                           ┌──────────────┐
+                           │ LINUX KERNEL │
+                           └──────┬───────┘
+                                  │
+          ┌───────────────────────┼───────────────────────┐
+          │                       │                       │
+    ┌─────┴─────┐          ┌─────┴─────┐          ┌──────┴──────┐
+    │  DEBIAN   │          │  RED HAT  │          │    ARCH     │
+    │  (1993)   │          │  (1995)   │          │   (2002)    │
+    │  .deb     │          │  .rpm     │          │  pacman     │
+    └─────┬─────┘          └─────┬─────┘          └──────┬──────┘
+          │                      │                       │
+    ┌─────┼──────┐         ┌─────┼──────┐          ┌────┴────┐
+    │     │      │         │     │      │          │         │
+ Ubuntu  Kali  Mint    Fedora  CentOS  RHEL    Manjaro  EndeavourOS
+    │   Linux    │         │   (→Rocky)  │
+    │            │         │   (→Alma)   │
+ Kubuntu     LMDE      CentOS       Oracle
+ Lubuntu                Stream       Linux
+ Xubuntu
+ Pop!_OS
+```
+
+### Distribution Families — Detailed Breakdown
+
+#### 1. Debian Family (`apt` / `.deb` packages)
+
+```
+Debian ──→ "The Universal Operating System"
+  │         Stable, community-driven, huge package repo
+  │
+  ├── Ubuntu ──→ Most popular desktop & server distro
+  │     │         Easy to use, backed by Canonical
+  │     │         Release: every 6 months (LTS every 2 years)
+  │     │
+  │     ├── Ubuntu Server   → Most used for cloud servers, AWS default
+  │     ├── Kubuntu         → Ubuntu + KDE desktop
+  │     ├── Lubuntu         → Ubuntu + lightweight desktop
+  │     ├── Xubuntu         → Ubuntu + XFCE desktop
+  │     ├── Pop!_OS         → Ubuntu-based, by System76 (for developers)
+  │     └── Linux Mint      → Ubuntu-based, beginner-friendly
+  │
+  ├── Kali Linux ──→ Penetration testing & security auditing
+  │                   Pre-installed security tools
+  │
+  └── Raspbian (Raspberry Pi OS) ──→ For Raspberry Pi devices
+```
+
+```bash
+# Package Manager: APT (Advanced Package Tool)
+apt update                    # Update package list
+apt install nginx             # Install package
+apt remove nginx              # Remove package
+apt upgrade                   # Upgrade all packages
+apt search docker             # Search for packages
+dpkg -i package.deb           # Install .deb file directly
+```
+
+#### 2. Red Hat Family (`yum` / `dnf` / `.rpm` packages)
+
+```
+Red Hat Enterprise Linux (RHEL) ──→ Enterprise, paid support
+  │                                   Used by banks, governments, large corps
+  │                                   Subscription-based
+  │
+  ├── CentOS (discontinued 2021) ──→ Was free RHEL clone
+  │     │
+  │     ├── Rocky Linux ──→ CentOS replacement (community-driven)
+  │     └── AlmaLinux   ──→ CentOS replacement (by CloudLinux)
+  │
+  ├── CentOS Stream ──→ Rolling preview of future RHEL
+  │
+  ├── Oracle Linux ──→ Oracle's RHEL rebuild
+  │
+  └── Amazon Linux ──→ AWS optimized (RHEL-based)
+                       Default on EC2 instances
+
+Fedora ──→ Community distro, cutting-edge features
+  │         Testing ground for future RHEL features
+  │         Backed by Red Hat
+  │
+  └── Used by: Developers who want latest software
+```
+
+```bash
+# Package Manager: YUM (older) / DNF (modern replacement)
+yum install httpd             # Install package (CentOS 7, Amazon Linux)
+yum update                    # Update all packages
+dnf install nginx             # Install package (Fedora, RHEL 8+, Rocky)
+dnf remove nginx              # Remove package
+rpm -ivh package.rpm          # Install .rpm file directly
+```
+
+#### 3. Arch Family (`pacman`)
+
+```
+Arch Linux ──→ Rolling release, minimalist, DIY
+  │             You build your system from scratch
+  │             Not beginner-friendly
+  │
+  ├── Manjaro    ──→ Arch made easy (pre-configured)
+  ├── EndeavourOS ──→ Arch with installer
+  └── SteamOS    ──→ Valve's gaming OS (Arch-based)
+```
+
+```bash
+# Package Manager: pacman
+pacman -S nginx               # Install package
+pacman -Syu                   # Update everything
+pacman -R nginx               # Remove package
+```
+
+#### 4. SUSE Family (`zypper` / `.rpm` packages)
+
+```
+SUSE Linux (1994, Germany) ──→ One of the oldest commercial Linux distros
+  │                             Strong in Europe & enterprise market
+  │
+  ├── SUSE Linux Enterprise (SLES) ──→ Enterprise server OS
+  │     │                               Competitor to RHEL
+  │     │                               Used by: SAP, Siemens, BMW, banks
+  │     │                               Paid subscription + support
+  │     │
+  │     └── SUSE Linux Enterprise Desktop (SLED) ──→ Enterprise desktop
+  │
+  ├── openSUSE Leap ──→ Free, stable, community edition
+  │     │                 Based on SLES codebase
+  │     │                 Fixed release cycle
+  │     └── Best for: servers, workstations wanting SLES stability for free
+  │
+  ├── openSUSE Tumbleweed ──→ Rolling release (always latest)
+  │                            Like Arch but with better tooling
+  │                            Best for: developers wanting cutting-edge
+  │
+  └── openSUSE MicroOS ──→ Immutable OS for containers & K8s nodes
+                            Automatic updates, read-only root filesystem
+```
+
+```bash
+# Package Manager: zypper (CLI) / YaST (GUI — unique to SUSE)
+zypper install nginx          # Install package
+zypper update                 # Update all packages
+zypper remove nginx           # Remove package
+zypper search docker          # Search for packages
+zypper refresh                # Refresh repository metadata
+rpm -ivh package.rpm          # Install .rpm file directly
+
+# YaST (Yet another Setup Tool) — SUSE's unique admin tool
+yast                          # Launch YaST (TUI)
+yast2                         # Launch YaST (GUI)
+# YaST provides a unified interface for:
+# - Network config, Firewall, Users, Services, Partitioning, etc.
+# - No other distro has anything like YaST
+```
+
+**What makes SUSE unique?**
+
+| Feature | SUSE | Red Hat (RHEL) |
+|---------|------|---------------|
+| Origin | Germany (1994) | USA (1995) |
+| Admin tool | **YaST** (GUI/TUI — all-in-one) | No equivalent (manual config) |
+| Package manager | `zypper` | `yum` / `dnf` |
+| Package format | `.rpm` (same as Red Hat) | `.rpm` |
+| Enterprise version | SLES | RHEL |
+| Free community version | openSUSE Leap | Rocky Linux / AlmaLinux |
+| Rolling release | openSUSE Tumbleweed | Fedora (semi-rolling) |
+| Strong market | Europe, SAP ecosystem | USA, global |
+| Container OS | openSUSE MicroOS | — |
+| K8s distribution | **Rancher** (by SUSE) | **OpenShift** (by Red Hat) |
+
+> **Key point:** SUSE acquired **Rancher Labs** (2020), making it a major player in **Kubernetes management**. If you work with Rancher for K8s, you're in the SUSE ecosystem.
+
+#### 5. Other Notable Distributions
+
+```
+Alpine Linux ──→ Ultra-lightweight (5MB base image!)
+  │               Musl libc + BusyBox
+  └── Most used as Docker base image
+      Package manager: apk
+
+Gentoo ──→ Source-based (compile everything from source)
+           Maximum customization and performance
+```
+
+### Which Distro is Used Where?
+
+| Use Case | Recommended Distro | Why |
+|----------|-------------------|-----|
+| **Cloud Servers / AWS** | Amazon Linux, Ubuntu Server | Optimized, free, well-supported |
+| **Enterprise / Corporate** | RHEL, SLES | Paid support, certified, stable |
+| **Docker Base Image** | Alpine Linux | Tiny (5MB), secure, fast builds |
+| **Kubernetes Nodes** | Ubuntu Server, Rocky Linux | Wide K8s support |
+| **DevOps Workstation** | Ubuntu, Fedora, Pop!_OS | Great tooling, large community |
+| **Learning Linux** | Ubuntu, Linux Mint | Beginner-friendly |
+| **Security Testing** | Kali Linux | Pre-installed pen testing tools |
+| **Raspberry Pi / IoT** | Raspberry Pi OS | ARM optimized |
+| **CentOS Replacement** | Rocky Linux, AlmaLinux | 1:1 RHEL compatible, free |
+
+### Key Differences at a Glance
+
+| Feature | Debian/Ubuntu | Red Hat/RHEL | SUSE/openSUSE | Arch |
+|---------|--------------|-------------|---------------|------|
+| Package format | `.deb` | `.rpm` | `.rpm` | `pkg.tar.zst` |
+| Package manager | `apt` | `yum` / `dnf` | `zypper` | `pacman` |
+| Admin tool | — | — | **YaST** (unique) | — |
+| Release model | Fixed (LTS) | Fixed (LTS) | Fixed + Rolling | Rolling |
+| Stability | Very stable | Enterprise stable | Enterprise stable | Bleeding edge |
+| Community | Huge | Enterprise-focused | Strong in Europe | Advanced users |
+| Enterprise version | — | RHEL | SLES | — |
+| K8s platform | — | OpenShift | **Rancher** | — |
+| Default on AWS | Ubuntu Server | Amazon Linux | — | — |
+| Service manager | `systemd` | `systemd` | `systemd` | `systemd` |
+
+> **For DevOps:** You'll mostly work with **Ubuntu Server** (cloud, Docker) and **Amazon Linux / Rocky Linux** (AWS, enterprise). Know both `apt` and `yum/dnf` commands.
+
+---
 
 ### File & Directory Operations
 
@@ -665,7 +891,354 @@ jobs:
 
 ---
 
-## 5. Docker
+## 5. Virtual Machines (VM)
+
+### What is a Virtual Machine?
+
+A **Virtual Machine (VM)** is a software-based emulation of a physical computer. It runs a complete operating system (including its own kernel) on top of a **hypervisor**, which manages hardware resources.
+
+```
+Physical Server (Host)
+═══════════════════════════════════════════════════
+┌───────────────────────────────────────────────┐
+│                    Hardware                    │
+│        (CPU, RAM, Disk, Network)              │
+└───────────────────┬───────────────────────────┘
+                    │
+┌───────────────────┴───────────────────────────┐
+│              HYPERVISOR                        │
+│   (manages and isolates VMs)                  │
+└───┬──────────────┬──────────────┬─────────────┘
+    │              │              │
+┌───┴────┐   ┌────┴───┐   ┌─────┴──┐
+│  VM 1  │   │  VM 2  │   │  VM 3  │
+│ Ubuntu │   │Windows │   │ CentOS │
+│ Server │   │ Server │   │        │
+│        │   │        │   │        │
+│ App A  │   │ App B  │   │ App C  │
+└────────┘   └────────┘   └────────┘
+ 2 CPU        4 CPU        2 CPU
+ 4GB RAM      8GB RAM      4GB RAM
+ 50GB Disk    100GB Disk   50GB Disk
+```
+
+### Types of Hypervisors
+
+```
+TYPE 1 — Bare Metal (directly on hardware):
+════════════════════════════════════════════
+  Hardware → Hypervisor → VMs
+  No host OS in between — better performance
+
+  Examples:
+  ┌─────────────────────┬─────────────────────────────┐
+  │ VMware ESXi         │ Enterprise standard          │
+  │ Microsoft Hyper-V   │ Built into Windows Server    │
+  │ KVM                 │ Built into Linux kernel      │
+  │ Xen                 │ Used by AWS (earlier EC2)    │
+  │ Proxmox VE          │ Free, KVM-based, popular     │
+  └─────────────────────┴─────────────────────────────┘
+
+TYPE 2 — Hosted (runs on top of an OS):
+═══════════════════════════════════════
+  Hardware → Host OS → Hypervisor → VMs
+  Easier to set up but more overhead
+
+  Examples:
+  ┌─────────────────────┬─────────────────────────────┐
+  │ VirtualBox          │ Free, open-source (Oracle)   │
+  │ VMware Workstation  │ Paid, feature-rich           │
+  │ Parallels           │ macOS (run Windows on Mac)   │
+  │ QEMU                │ Open-source emulator         │
+  └─────────────────────┴─────────────────────────────┘
+```
+
+```
+Type 1 (Bare Metal):              Type 2 (Hosted):
+═════════════════════              ═════════════════
+┌──────┐ ┌──────┐                 ┌──────┐ ┌──────┐
+│ VM 1 │ │ VM 2 │                 │ VM 1 │ │ VM 2 │
+└──┬───┘ └──┬───┘                 └──┬───┘ └──┬───┘
+   └────┬───┘                        └────┬───┘
+  ┌─────┴─────┐                     ┌─────┴─────┐
+  │ Hypervisor│                     │ Hypervisor│
+  └─────┬─────┘                     └─────┬─────┘
+  ┌─────┴─────┐                     ┌─────┴─────┐
+  │ Hardware  │                     │  Host OS  │  ← Extra layer
+  └───────────┘                     └─────┬─────┘
+                                    ┌─────┴─────┐
+                                    │ Hardware  │
+                                    └───────────┘
+  Better performance                Easier to use
+  Production / Data centers         Development / Testing
+```
+
+### VM Management Tools
+
+| Tool | Type | Use Case |
+|------|------|----------|
+| **Vagrant** | VM automation (CLI) | Create reproducible dev environments |
+| **Proxmox VE** | Type 1 hypervisor (free) | Home lab, small business |
+| **VMware vSphere** | Enterprise platform | Data center management |
+| **libvirt / virsh** | Linux VM management | KVM management on Linux |
+| **Terraform** | IaC | Provision VMs in cloud (EC2) |
+
+### Vagrant — VM as Code
+
+```ruby
+# Vagrantfile — define VM in code
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/jammy64"         # Ubuntu 22.04
+
+  config.vm.network "private_network", ip: "192.168.56.10"
+  config.vm.network "forwarded_port", guest: 8080, host: 8080
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "2048"                     # 2GB RAM
+    vb.cpus = 2                            # 2 CPU cores
+  end
+
+  config.vm.provision "shell", inline: <<-SHELL
+    apt-get update
+    apt-get install -y openjdk-17-jdk
+    echo "Java installed!"
+  SHELL
+end
+```
+
+```bash
+# Vagrant Commands
+vagrant init ubuntu/jammy64     # Create Vagrantfile
+vagrant up                      # Start VM
+vagrant ssh                     # SSH into VM
+vagrant halt                    # Stop VM
+vagrant destroy                 # Delete VM
+vagrant reload                  # Restart VM (apply config changes)
+vagrant status                  # Check VM status
+vagrant snapshot save snap1     # Take snapshot
+vagrant snapshot restore snap1  # Restore snapshot
+```
+
+### When to Use VMs
+
+```
+✓ Need to run a DIFFERENT OS (Windows on Linux, Linux on Mac)
+✓ Need STRONG isolation (security-critical workloads)
+✓ Running legacy applications that need a full OS
+✓ Need to allocate DEDICATED hardware resources (CPU, RAM)
+✓ Multi-tenant environments (hosting providers)
+✓ Testing across different OS versions
+✗ NOT ideal for: microservices, CI/CD, rapid scaling
+```
+
+---
+
+## 6. LXC / LXD — System Containers
+
+### What is LXC?
+
+**LXC (Linux Containers)** is the oldest Linux container technology (2008). It runs a **full Linux operating system** inside a container — sharing the host's kernel but with its own init system, users, file system, and network stack.
+
+Think of it as: **"VM experience without the hypervisor overhead"**
+
+```
+LXC Architecture:
+══════════════════
+
+┌──────────────────────────────────────────────┐
+│               Host Machine                    │
+│                                              │
+│  ┌─── LXC Container 1 ───┐  ┌─── LXC Container 2 ───┐
+│  │                        │  │                        │
+│  │  Full Ubuntu 22.04     │  │  Full CentOS 9         │
+│  │  ├── systemd (init)    │  │  ├── systemd (init)    │
+│  │  ├── sshd              │  │  ├── httpd             │
+│  │  ├── cron              │  │  ├── mysql             │
+│  │  ├── nginx             │  │  └── your-app          │
+│  │  └── your-app          │  │                        │
+│  │                        │  │  Own users, network,   │
+│  │  Own users, network,   │  │  filesystem            │
+│  │  filesystem            │  │                        │
+│  └────────────────────────┘  └────────────────────────┘
+│                                              │
+│  ┌────────────────────────────────────────┐  │
+│  │         SHARED HOST KERNEL             │  │
+│  │  (Linux kernel, namespaces, cgroups)   │  │
+│  └────────────────────────────────────────┘  │
+└──────────────────────────────────────────────┘
+
+Key: Containers share the HOST kernel
+     → Cannot run Windows in LXC (needs Linux kernel)
+     → Much lighter than VM (no separate kernel per container)
+```
+
+### What is LXD?
+
+**LXD** (pronounced "lex-dee") is a modern management layer **on top of LXC**, created by **Canonical** (the company behind Ubuntu).
+
+```
+LXC vs LXD:
+════════════
+
+LXC = Low-level container runtime (like containerd for Docker)
+LXD = High-level manager with nice CLI, REST API (like Docker CLI)
+
+       ┌─────────┐
+       │   LXD   │  ← You interact with this (CLI, API)
+       │  (easy) │
+       └────┬────┘
+            │
+       ┌────┴────┐
+       │   LXC   │  ← Does the actual container work
+       │  (core) │
+       └─────────┘
+
+LXD adds:
+  - Easy CLI (lxc launch, lxc exec — similar to Docker)
+  - REST API for remote management
+  - Image management (like Docker Hub but for system images)
+  - Snapshots and restore
+  - Live migration (move container between hosts without downtime)
+  - VM support (LXD can also manage VMs alongside containers!)
+  - Clustering (multiple LXD hosts as a single pool)
+```
+
+### LXD Commands
+
+```bash
+# Setup
+snap install lxd                       # Install LXD (Ubuntu)
+lxd init                               # Initialize LXD (storage, network)
+
+# Container Lifecycle
+lxc launch ubuntu:22.04 web-server     # Create & start Ubuntu container
+lxc launch images:centos/9 db-server   # Create CentOS container
+lxc list                               # List all containers
+lxc info web-server                    # Detailed info
+
+# Access
+lxc exec web-server -- bash            # Shell into container
+lxc exec web-server -- apt update      # Run command inside
+lxc file push app.jar web-server/opt/  # Push file into container
+lxc file pull web-server/var/log/syslog ./  # Pull file from container
+
+# Control
+lxc stop web-server                    # Stop container
+lxc start web-server                   # Start container
+lxc restart web-server                 # Restart
+lxc delete web-server                  # Delete (must be stopped)
+lxc delete web-server --force          # Force delete
+
+# Snapshots
+lxc snapshot web-server backup1        # Create snapshot
+lxc restore web-server backup1         # Restore from snapshot
+lxc info web-server                    # List snapshots
+
+# Networking
+lxc network list                       # List networks
+lxc network show lxdbr0                # Show network details
+
+# Resource Limits
+lxc config set web-server limits.cpu 2          # Limit to 2 CPUs
+lxc config set web-server limits.memory 1GB     # Limit to 1GB RAM
+
+# Images
+lxc image list                         # List local images
+lxc image list ubuntu:                 # List available Ubuntu images
+lxc image list images:                 # List all available images
+```
+
+### LXD Networking
+
+```
+LXD Network Setup:
+══════════════════
+
+Default: lxdbr0 (bridge — like Docker's bridge)
+┌──────────────────────────────────────┐
+│          lxdbr0 (10.10.10.1/24)      │
+│                                      │
+│  ┌──────────┐     ┌──────────┐      │
+│  │web-server│     │db-server │      │
+│  │10.10.10.5│     │10.10.10.6│      │
+│  └──────────┘     └──────────┘      │
+└──────────────────────────────────────┘
+         │
+    NAT to host → Internet
+
+Containers can reach each other by name:
+  From web-server: ping db-server → works!
+  From web-server: ssh db-server  → works! (full OS, SSH available)
+```
+
+### LXD Profiles (Templates)
+
+```bash
+# Create a profile (reusable configuration)
+lxc profile create web-profile
+lxc profile set web-profile limits.cpu 2
+lxc profile set web-profile limits.memory 2GB
+
+# Launch container with profile
+lxc launch ubuntu:22.04 web1 --profile web-profile
+lxc launch ubuntu:22.04 web2 --profile web-profile
+# Both get same resource limits
+```
+
+### LXD Storage
+
+```
+Storage Backends:
+═════════════════
+┌────────────┬──────────────────────────────────────────┐
+│ Backend    │ Features                                  │
+├────────────┼──────────────────────────────────────────┤
+│ ZFS        │ Best! Snapshots, compression, clones     │
+│ Btrfs      │ Good. Copy-on-write, snapshots           │
+│ LVM        │ Block-level, good performance            │
+│ Dir        │ Simple directory (no advanced features)   │
+└────────────┴──────────────────────────────────────────┘
+
+Recommended: ZFS (fast snapshots, space efficient)
+```
+
+### When to Use LXC/LXD
+
+```
+✓ Need a full Linux environment (like a VM but much lighter)
+✓ Want to give developers isolated Linux environments
+✓ Running legacy apps that expect systemd, cron, SSH
+✓ Hosting multiple isolated environments on one server
+✓ Need multiple services running inside one container
+✓ Want VM-like experience with container performance
+✗ NOT ideal for: microservices, CI/CD pipelines, Kubernetes
+```
+
+### Real-World LXD Use Case
+
+```bash
+# Scenario: Create isolated dev environment for each developer
+
+# Developer 1: Java developer
+lxc launch ubuntu:22.04 dev-john
+lxc exec dev-john -- bash -c "apt update && apt install -y openjdk-17-jdk maven"
+lxc config set dev-john limits.cpu 4
+lxc config set dev-john limits.memory 4GB
+
+# Developer 2: Python developer
+lxc launch ubuntu:22.04 dev-jane
+lxc exec dev-jane -- bash -c "apt update && apt install -y python3 python3-pip"
+lxc config set dev-jane limits.cpu 2
+lxc config set dev-jane limits.memory 2GB
+
+# Each developer SSHs into their own container
+# Completely isolated, feels like their own server
+# If they break something → lxc delete + lxc launch (fresh start in seconds)
+```
+
+---
+
+## 7. Docker — Application Containers
 
 ### What is Docker?
 
@@ -677,13 +1250,13 @@ TRADITIONAL:                          DOCKER:
 ┌───────────────────┐                ┌───────────────────┐
 │  "Works on my     │                │   Container 1     │
 │   machine" 🤷     │                │  ┌─────────────┐  │
-│                   │                │  │ App + Deps   │  │
-│  App depends on:  │                │  │ (isolated)   │  │
+│                   │                │  │ App + Deps  │  │
+│  App depends on:  │                │  │ (isolated)  │  │
 │  - Java 17        │                │  └─────────────┘  │
 │  - specific libs  │                │   Container 2     │
 │  - OS config      │                │  ┌─────────────┐  │
-│  - env variables  │                │  │ DB + Config  │  │
-│                   │                │  │ (isolated)   │  │
+│  - env variables  │                │  │ DB + Config │  │
+│                   │                │  │ (isolated)  │  │
 └───────────────────┘                │  └─────────────┘  │
                                      │   Docker Engine   │
                                      │   Host OS         │
@@ -809,10 +1382,10 @@ Docker Network Types:
 1. bridge (default) — Containers on same host communicate
    ┌──────────────────────────────────┐
    │         bridge network           │
-   │  ┌──────┐         ┌──────┐      │
-   │  │App   │ ←─────→ │ DB   │      │
-   │  │:8080 │         │:5432 │      │
-   │  └──────┘         └──────┘      │
+   │  ┌──────┐         ┌──────┐       │
+   │  │App   │ ←─────→ │ DB   │       │
+   │  │:8080 │         │:5432 │       │
+   │  └──────┘         └──────┘       │
    └──────────────────────────────────┘
 
 2. host — Container uses host's network directly
@@ -845,9 +1418,57 @@ docker run -v /home/veer/config:/app/config my-app:1.0
 docker run -v /host/config:/app/config:ro my-app:1.0
 ```
 
+### VM vs LXC/LXD vs Docker — Complete Comparison
+
+| Feature | Virtual Machine | LXC/LXD | Docker |
+|---------|----------------|---------|--------|
+| **Type** | Full virtualization | System container | Application container |
+| **What it runs** | Complete OS + kernel | Full OS (shared kernel) | Single process/app |
+| **Init system** | Yes (full boot) | Yes (systemd) | No (PID 1 = your app) |
+| **SSH access** | Yes | Yes | No (`docker exec` instead) |
+| **Size** | GBs | 100s of MBs | MBs |
+| **Startup time** | Minutes | Seconds | Seconds |
+| **Isolation** | Hardware-level (strongest) | OS-level (strong) | Process-level (lighter) |
+| **Persistence** | Persistent | Persistent (like VM) | Ephemeral (rebuild) |
+| **Can run Windows?** | Yes | No (Linux kernel only) | No (Linux kernel only) |
+| **Multiple services** | Yes | Yes | No (1 process per container) |
+| **Networking** | Full virtual NIC | Bridge, macvlan, full stack | Bridge, overlay |
+| **Storage** | Virtual disks | ZFS, Btrfs, LVM | Volumes, bind mounts |
+| **Orchestration** | VMware, Proxmox | — | Kubernetes, Swarm |
+| **Ecosystem** | Mature (VMware, Hyper-V) | Smaller | Huge (Docker Hub, K8s) |
+| **Best for** | Different OS, strong isolation | Dev environments, legacy apps | Microservices, CI/CD |
+
+### When to Use What — Decision Guide
+
+```
+"I want to run a single app/microservice"
+  └── Docker ✓
+
+"I want a full Linux environment (like a VM but lightweight)"
+  └── LXC/LXD ✓
+
+"I need to run Windows or a completely different OS"
+  └── Virtual Machine ✓
+
+"I want to give developers isolated Linux environments"
+  └── LXC/LXD ✓
+
+"I'm deploying microservices to production"
+  └── Docker + Kubernetes ✓
+
+"I need stronger security isolation"
+  └── VM > LXD > Docker  (strongest to lightest)
+
+"I'm running a traditional monolith with cron jobs, SSH, systemd"
+  └── LXC/LXD or VM ✓
+
+"I want reproducible, immutable deployments"
+  └── Docker ✓
+```
+
 ---
 
-## 6. Docker Compose
+## 8. Docker Compose
 
 ### What is Docker Compose?
 
@@ -953,7 +1574,7 @@ docker-compose pull                 # Pull latest images
 
 ---
 
-## 7. Kubernetes (K8s)
+## 9. Kubernetes (K8s)
 
 ### What is Kubernetes?
 
@@ -976,24 +1597,24 @@ Docker alone:                         With Kubernetes:
 ┌──────────────────────────────────────────────────────────────────┐
 │                        KUBERNETES CLUSTER                        │
 │                                                                  │
-│  ┌─────────────── Control Plane (Master) ──────────────────┐    │
-│  │                                                          │    │
-│  │  ┌──────────┐  ┌───────────┐  ┌────────┐  ┌─────────┐  │    │
-│  │  │ API      │  │ Scheduler │  │ etcd   │  │Controller│  │    │
-│  │  │ Server   │  │           │  │(store) │  │ Manager  │  │    │
-│  │  └──────────┘  └───────────┘  └────────┘  └─────────┘  │    │
+│  ┌─────────────── Control Plane (Master) ──────────────────┐     │
+│  │                                                         │     │
+│  │  ┌──────────┐  ┌───────────┐  ┌────────┐  ┌─────────┐   │     │
+│  │  │ API      │  │ Scheduler │  │ etcd   │  │Controller│  │     │
+│  │  │ Server   │  │           │  │(store) │  │ Manager  │  │     │
+│  │  └──────────┘  └───────────┘  └────────┘  └─────────┘   │     │
 │  └──────────────────────────────────────────────────────────┘    │
 │                                                                  │
-│  ┌──── Worker Node 1 ────┐    ┌──── Worker Node 2 ────┐        │
-│  │                        │    │                        │        │
-│  │  ┌─Pod──┐  ┌─Pod──┐   │    │  ┌─Pod──┐  ┌─Pod──┐   │        │
-│  │  │ App  │  │ App  │   │    │  │ App  │  │ DB   │   │        │
-│  │  └──────┘  └──────┘   │    │  └──────┘  └──────┘   │        │
-│  │                        │    │                        │        │
-│  │  ┌────────┐ ┌───────┐ │    │  ┌────────┐ ┌───────┐ │        │
-│  │  │ Kubelet│ │ kube- │ │    │  │ Kubelet│ │ kube- │ │        │
-│  │  │        │ │ proxy │ │    │  │        │ │ proxy │ │        │
-│  │  └────────┘ └───────┘ │    │  └────────┘ └───────┘ │        │
+│  ┌──── Worker Node 1 ────┐    ┌──── Worker Node 2 ────┐          │
+│  │                       │    │                       │          │
+│  │  ┌─Pod──┐  ┌─Pod──┐   │    │  ┌─Pod──┐  ┌─Pod──┐   │          │
+│  │  │ App  │  │ App  │   │    │  │ App  │  │ DB   │   │          │
+│  │  └──────┘  └──────┘   │    │  └──────┘  └──────┘   │          │
+│  │                       │    │                       │          │
+│  │  ┌────────┐ ┌───────┐ │    │  ┌────────┐ ┌───────┐ │          │
+│  │  │ Kubelet│ │ kube- │ │    │  │ Kubelet│ │ kube- │ │          │
+│  │  │        │ │ proxy │ │    │  │        │ │ proxy │ │          │
+│  │  └────────┘ └───────┘ │    │  └────────┘ └───────┘ │          │
 │  └────────────────────────┘    └────────────────────────┘        │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -1165,7 +1786,7 @@ kubectl create namespace staging        # Create namespace
 
 ---
 
-## 8. Nginx & Reverse Proxy
+## 10. Nginx & Reverse Proxy
 
 ### What is a Reverse Proxy?
 
@@ -1243,27 +1864,27 @@ http {
 
 ---
 
-## 9. Monitoring & Logging
+## 11. Monitoring & Logging
 
 ### Monitoring Stack Overview
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                    Monitoring Architecture                 │
+│                    Monitoring Architecture               │
 │                                                          │
-│   ┌─────────┐      ┌────────────┐      ┌────────────┐  │
-│   │ App     │─────→│ Prometheus │─────→│  Grafana   │  │
-│   │ /metrics│      │ (collect)  │      │ (visualize)│  │
-│   └─────────┘      └────────────┘      └────────────┘  │
+│   ┌─────────┐      ┌────────────┐      ┌────────────┐    │
+│   │ App     │─────→│ Prometheus │─────→│  Grafana   │    │
+│   │ /metrics│      │ (collect)  │      │ (visualize)│    │
+│   └─────────┘      └────────────┘      └────────────┘    │
 │                                                          │
-│   ┌─────────┐      ┌────────────┐      ┌────────────┐  │
-│   │ App     │─────→│   ELK /    │─────→│  Kibana    │  │
-│   │ (logs)  │      │  Loki      │      │ (search)   │  │
-│   └─────────┘      └────────────┘      └────────────┘  │
+│   ┌─────────┐      ┌────────────┐      ┌────────────┐    │
+│   │ App     │─────→│   ELK /    │─────→│  Kibana    │    │
+│   │ (logs)  │      │  Loki      │      │ (search)   │    │
+│   └─────────┘      └────────────┘      └────────────┘    │
 │                                                          │
-│   ┌─────────┐                          ┌────────────┐  │
-│   │AlertMgr │─────────────────────────→│Slack/Email │  │
-│   └─────────┘                          └────────────┘  │
+│   ┌─────────┐                          ┌────────────┐    │
+│   │AlertMgr │─────────────────────────→│Slack/Email │    │
+│   └─────────┘                          └────────────┘    │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -1337,7 +1958,7 @@ Alternatives:
 
 ---
 
-## 10. Infrastructure as Code (Terraform)
+## 12. Infrastructure as Code (Terraform)
 
 ### What is IaC?
 
@@ -1428,7 +2049,7 @@ Write .tf files  →  terraform init  →  terraform plan  →  terraform apply
 
 ---
 
-## 11. Networking for DevOps
+## 13. Networking for DevOps
 
 ### Essential Concepts
 
@@ -1464,12 +2085,12 @@ Firewall Rules (iptables / Security Groups):
 
 INBOUND (who can reach your server):
   ┌─────────────────────────────────────────────┐
-  │ Port │ Protocol │  Source     │ Purpose      │
+  │ Port │ Protocol │  Source    │ Purpose      │
   │──────┼──────────┼────────────┼──────────────│
   │ 22   │ TCP      │ My IP only │ SSH access   │
   │ 80   │ TCP      │ 0.0.0.0/0  │ HTTP         │
   │ 443  │ TCP      │ 0.0.0.0/0  │ HTTPS        │
-  │ 8080 │ TCP      │ VPC only   │ App (internal)│
+  │ 8080 │ TCP      │ VPC only   │App (internal)│
   └─────────────────────────────────────────────┘
 
 OUTBOUND (where your server can go):
@@ -1494,7 +2115,7 @@ dig +short myapp.com A               # Just the IP
 
 ---
 
-## 12. Interview Questions
+## 14. Interview Questions
 
 ---
 
@@ -1536,8 +2157,8 @@ Developer pushes code
         │
         ▼
   ┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
-  │  Build    │────→│  Test    │────→│  Stage   │────→│  Prod    │
-  │  (Maven)  │     │  (JUnit) │     │  Deploy  │     │  Deploy  │
+  │  Build   │────→│  Test    │────→│  Stage   │────→│  Prod    │
+  │  (Maven) │     │  (JUnit) │     │  Deploy  │     │  Deploy  │
   └──────────┘     └──────────┘     └──────────┘     └──────────┘
   ├───────── CI ─────────────┤├── CD (Delivery: manual gate) ──┤
                               ├── CD (Deployment: auto) ───────┤
@@ -1647,23 +2268,23 @@ Step-by-step:
 
 ```
 ┌─── Deployment ──────────────────────────────────────────┐
-│  "I want 3 replicas of my-app, using image v2.0"       │
-│                                                          │
+│  "I want 3 replicas of my-app, using image v2.0"        │
+│                                                         │
 │  ┌─── ReplicaSet ─────────────────────────────────────┐ │
 │  │  "Ensure exactly 3 pods are always running"        │ │
-│  │                                                     │ │
-│  │   ┌─ Pod ──┐    ┌─ Pod ──┐    ┌─ Pod ──┐         │ │
-│  │   │ my-app │    │ my-app │    │ my-app │         │ │
-│  │   │ (v2.0) │    │ (v2.0) │    │ (v2.0) │         │ │
-│  │   └────────┘    └────────┘    └────────┘         │ │
-│  └─────────────────────────────────────────────────────┘ │
+│  │                                                    │ │
+│  │   ┌─ Pod ──┐    ┌─ Pod ──┐    ┌─ Pod ──┐           │ │
+│  │   │ my-app │    │ my-app │    │ my-app │           │ │
+│  │   │ (v2.0) │    │ (v2.0) │    │ (v2.0) │           │ │
+│  │   └────────┘    └────────┘    └────────┘           │ │
+│  └─────────────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────────────┘
                ▲
                │  selector: app=my-app
                │
 ┌─── Service ──┴──────────────────────────────────────────┐
 │  "Route traffic to any pod labeled app=my-app"          │
-│   ClusterIP: 10.96.0.1:80  →  Pod:8080                 │
+│   ClusterIP: 10.96.0.1:80  →  Pod:8080                  │
 └──────────────────────────────────────────────────────────┘
 ```
 
