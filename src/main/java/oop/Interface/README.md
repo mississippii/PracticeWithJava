@@ -1,340 +1,399 @@
-# 06. Interface - Contract
+# Interface — Contract for Behavior
 
 ## What is an Interface?
-A contract that defines "WHAT" a class should do, not "HOW" to do it. 100% abstraction.
 
-**A reference type that contains only method signatures (and constants).**
+An interface defines **what** a class must do, without saying **how** to do it.
 
----
-
-## Why Interface?
-
-1. **100% Abstraction** - Only method declarations
-2. **Multiple Inheritance** - Implement multiple interfaces
-3. **Loose Coupling** - Depend on interface, not implementation
-4. **Flexibility** - Easy to swap implementations
-
----
-
-## Syntax
+It is a contract — any class that signs it (`implements`) must fulfill every method in it.
 
 ```java
-interface InterfaceName {
-    // Abstract methods (public abstract by default)
-    void method1();
-    int method2(String param);
-
-    // Constants (public static final by default)
-    int MAX_VALUE = 100;
+interface Payable {
+    void pay(double amount);        // must be implemented
+    String getPaymentMethod();      // must be implemented
 }
 
-class ClassName implements InterfaceName {
-    // Must implement all methods
+class CashPayment implements Payable {
     @Override
-    public void method1() {
-        // implementation
-    }
+    public void pay(double amount) { ... }     // fulfills the contract
 
     @Override
-    public int method2(String param) {
-        // implementation
-        return 0;
+    public String getPaymentMethod() { ... }   // fulfills the contract
+}
+```
+
+---
+
+## Interface vs Abstract Class
+
+| | Interface | Abstract Class |
+|---|---|---|
+| Keyword | `interface` / `implements` | `abstract` / `extends` |
+| Multiple inheritance | Yes — implement many | No — extend one only |
+| Constructor | No | Yes |
+| Fields | Only `public static final` constants | Any type |
+| Methods | abstract, default, static, private | abstract + concrete |
+| When to use | Unrelated classes share a capability | Related classes share code |
+
+**Rule of thumb:**
+- Use **interface** when you define a capability: `Payable`, `Flyable`, `Comparable`
+- Use **abstract class** when you define a family: `Shape → Circle, Rectangle`
+
+---
+
+## Method Types in an Interface
+
+### 1. Abstract method — `public abstract` by default
+
+Every implementing class **must** provide its own version.
+
+```java
+interface Payable {
+    void pay(double amount);          // abstract — no body
+    String getPaymentMethod();        // abstract — no body
+}
+```
+
+### 2. Constant — `public static final` by default
+
+Cannot be changed. Shared by all implementing classes.
+
+```java
+interface Payable {
+    double MAX_AMOUNT = 100_000.0;   // constant — no modifier needed
+}
+
+// Access:
+Payable.MAX_AMOUNT   // via interface
+card.MAX_AMOUNT      // via implementing object (but prefer interface name)
+```
+
+### 3. Default method — Java 8+
+
+Has a body. Implementing class **gets it for free** and can override it if needed.
+
+```java
+interface Payable {
+    default void printReceipt(double amount) {
+        System.out.println("Receipt: " + getPaymentMethod() + " — $" + amount);
+    }
+}
+```
+
+- `CashPayment` does not override it → uses Payable's version
+- `BkashPayment` overrides it → sends SMS instead
+
+### 4. Static method — Java 8+
+
+Belongs to the **interface itself**, not to any implementing object.  
+Called as `Payable.validate(...)`, never on an instance.
+
+```java
+interface Payable {
+    static void validate(double amount) {
+        if (amount <= 0) throw new IllegalArgumentException("Invalid amount");
+    }
+}
+
+// Usage:
+Payable.validate(500);   // correct
+cash.validate(500);      // works but misleading — avoid
+```
+
+### 5. Private method — Java 9+
+
+Helper method inside the interface — shared by default methods, hidden from outside.
+
+```java
+interface Payable {
+    default void printReceipt(double amount) {
+        System.out.println("[Receipt] " + formatAmount(amount));  // uses private helper
+    }
+
+    default void printSummary(double amount) {
+        System.out.println("[Summary] " + formatAmount(amount));  // reuses same helper
+    }
+
+    private String formatAmount(double amount) {
+        return String.format("$%.2f", amount);   // shared logic, not exposed
     }
 }
 ```
 
 ---
 
-## Features
+## Multiple Interface Implementation
 
-### Before Java 8
-- All methods: `public abstract` (by default)
-- All fields: `public static final` (by default)
-- No constructors
-- No method body
-
-### After Java 8
-- **Default methods** - methods with body
-- **Static methods** - utility methods
-
-### After Java 9
-- **Private methods** - helper methods
-
----
-
-## Interface Methods
-
-### 1. Abstract Methods (Default)
+A class can implement **more than one interface** — unlike class inheritance which allows only one.
 
 ```java
-interface Animal {
-    void sound();  // public abstract by default
+class CardPayment implements Payable, Taxable {
+    // Must implement: pay(), getPaymentMethod()  (from Payable)
+    // Must implement: calculateTax()              (from Taxable)
+    // Gets for free:  printReceipt(), totalWithTax() (defaults)
 }
 ```
 
-### 2. Default Methods (Java 8+)
-
 ```java
-interface Animal {
-    default void sleep() {
-        System.out.println("Sleeping...");
-    }
-}
-```
+CardPayment card = new CardPayment("Carol", "4321");
 
-### 3. Static Methods (Java 8+)
+// Can be used as either type
+Payable  p = card;
+Taxable  t = card;
 
-```java
-interface MathUtils {
-    static int add(int a, int b) {
-        return a + b;
-    }
-}
-
-// Usage
-int sum = MathUtils.add(5, 10);
-```
-
-### 4. Private Methods (Java 9+)
-
-```java
-interface Helper {
-    default void method1() {
-        commonLogic();
-    }
-
-    default void method2() {
-        commonLogic();
-    }
-
-    private void commonLogic() {
-        // Reusable code
-    }
-}
-```
-
----
-
-## Multiple Inheritance
-
-Java doesn't support multiple inheritance for classes but supports it through interfaces.
-
-```java
-interface Flyable {
-    void fly();
-}
-
-interface Swimmable {
-    void swim();
-}
-
-// Class implementing multiple interfaces
-class Duck implements Flyable, Swimmable {
-    @Override
-    public void fly() {
-        System.out.println("Duck flying");
-    }
-
-    @Override
-    public void swim() {
-        System.out.println("Duck swimming");
-    }
-}
-
-// Usage
-Duck duck = new Duck();
-duck.fly();
-duck.swim();
+p.pay(1000);
+t.calculateTax(1000);
 ```
 
 ---
 
 ## Interface Extending Interface
 
+An interface can extend another interface — adding more methods to the contract.
+
 ```java
-interface A {
-    void methodA();
+interface Payable {
+    void pay(double amount);
+    String getPaymentMethod();
 }
 
-interface B extends A {
-    void methodB();
+interface Refundable extends Payable {
+    void refund(double amount);   // adds refund on top of Payable
 }
+```
 
-class C implements B {
-    public void methodA() { }  // From A
-    public void methodB() { }  // From B
+A class implementing `Refundable` must fulfill **both** contracts:
+
+```java
+class OnlinePayment implements Refundable {
+    @Override public void pay(double amount) { ... }
+    @Override public String getPaymentMethod() { ... }
+    @Override public void refund(double amount) { ... }
 }
 ```
 
 ---
 
-## Files in This Folder
+## Polymorphism with Interface
 
-1. **BasicInterface.java** - Simple interface example
-2. **MultipleInheritance.java** - Implementing multiple interfaces
-3. **DefaultMethods.java** - Default methods (Java 8+)
-4. **StaticMethods.java** - Static methods in interface
-5. **InterfaceExtending.java** - Interface extending interface
-6. **FunctionalInterface.java** - Single abstract method
-7. **Payment.java** *(existing)* - Payment interface
-8. **PaymentGateway.java** *(existing)* - Gateway interface
-9. **BkashPayment.java, CashPayment.java** *(existing)* - Implementations
-
----
-
-## Complete Example
+Interface reference can hold any implementing object — same as parent reference in inheritance.
 
 ```java
-// Interface
-interface Payment {
-    // Abstract method
-    void processPayment(double amount);
+Payable[] payments = {
+    new CashPayment("Alice"),
+    new BkashPayment("Bob", "017..."),
+    new CardPayment("Carol", "4321"),
+    new OnlinePayment("David")
+};
 
-    // Default method
-    default void printReceipt() {
-        System.out.println("Printing receipt...");
-    }
-
-    // Static method
-    static void validateAmount(double amount) {
-        if (amount <= 0) {
-            throw new IllegalArgumentException("Invalid amount");
-        }
-    }
-
-    // Constant
-    double TAX_RATE = 0.18;
-}
-
-// Implementation 1
-class CreditCard implements Payment {
-    @Override
-    public void processPayment(double amount) {
-        Payment.validateAmount(amount);  // Call static method
-        System.out.println("Processing credit card payment: $" + amount);
-        printReceipt();  // Call default method
-    }
-}
-
-// Implementation 2
-class PayPal implements Payment {
-    @Override
-    public void processPayment(double amount) {
-        Payment.validateAmount(amount);
-        System.out.println("Processing PayPal payment: $" + amount);
-    }
-
-    // Override default method
-    @Override
-    public void printReceipt() {
-        System.out.println("Sending email receipt...");
-    }
-}
-
-// Usage
-Payment payment1 = new CreditCard();
-payment1.processPayment(100);
-
-Payment payment2 = new PayPal();
-payment2.processPayment(200);
-
-System.out.println("Tax Rate: " + Payment.TAX_RATE);
-```
-
----
-
-## Marker Interface
-
-Interface with no methods. Used to mark/tag classes.
-
-```java
-interface Serializable {
-    // No methods
-}
-
-class Student implements Serializable {
-    // Now Student objects can be serialized
+for (Payable payment : payments) {
+    payment.pay(750);   // correct pay() called for each at runtime
 }
 ```
-
-**Examples in Java:**
-- `Serializable`
-- `Cloneable`
-- `Remote`
 
 ---
 
 ## Functional Interface
 
-Interface with exactly ONE abstract method. Can be used with lambda expressions.
+An interface with **exactly one abstract method**. Can be used with a lambda expression.
 
 ```java
 @FunctionalInterface
-interface Calculator {
-    int calculate(int a, int b);  // Only one abstract method
-
-    // Can have default/static methods
-    default void display() {
-        System.out.println("Calculator");
-    }
+interface Greeting {
+    void greet(String name);   // only one abstract method
 }
 
-// Usage with lambda
-Calculator add = (a, b) -> a + b;
-System.out.println(add.calculate(5, 3));  // 8
+// Without lambda (old way):
+Greeting g = new Greeting() {
+    @Override
+    public void greet(String name) {
+        System.out.println("Hello, " + name);
+    }
+};
+
+// With lambda (clean way):
+Greeting g = name -> System.out.println("Hello, " + name);
+g.greet("Alice");   // Hello, Alice
+```
+
+`@FunctionalInterface` is optional but recommended — compiler will error if you add a second abstract method by mistake.
+
+**Built-in functional interfaces in Java:** `Runnable`, `Callable`, `Comparator`, `Predicate`, `Function`, `Consumer`, `Supplier`
+
+---
+
+## The Diamond Problem — Why Interface Solves It
+
+### The problem with classes
+
+```
+        A
+       / \
+      B   C     both override greet() from A
+       \ /
+        D        which greet() does D get? — AMBIGUOUS
+```
+
+```java
+class A { void greet() { System.out.println("A"); } }
+class B extends A { void greet() { System.out.println("B"); } }
+class C extends A { void greet() { System.out.println("C"); } }
+
+class D extends B, C { }   // COMPILE ERROR — not allowed in Java
+// d.greet() — B's version or C's? Java cannot decide, so it blocks this entirely.
+```
+
+Java **forbids** multiple class inheritance because there is no safe way to resolve the conflict.
+
+---
+
+### Why interfaces didn't have this problem (before Java 8)
+
+Before Java 8, interfaces had **no method bodies** — only signatures. So even if two interfaces declared the same method, there was nothing to conflict. The implementing class always provided the only body.
+
+```java
+interface Flyable   { void move(); }   // no body
+interface Swimmable { void move(); }   // no body
+
+class Duck implements Flyable, Swimmable {
+    @Override
+    public void move() {               // Duck writes the only body — no conflict
+        System.out.println("Duck moves");
+    }
+}
 ```
 
 ---
 
-## Abstract Class vs Interface
+### Java 8 default methods — diamond can appear again
 
-| Feature              | Abstract Class          | Interface               |
-|----------------------|-------------------------|-------------------------|
-| **Keyword**          | `abstract`              | `interface`             |
-| **Inheritance**      | `extends` (single)      | `implements` (multiple) |
-| **Methods**          | Abstract + Concrete     | Abstract + Default/Static|
-| **Fields**           | Any type                | `public static final`   |
-| **Constructor**      | ✅ Yes                  | ❌ No                   |
-| **Access Modifiers** | Any                     | `public` (methods)      |
-| **When to use**      | IS-A (shared code)      | CAN-DO (capability)     |
-| **Abstraction**      | 0-100%                  | 100%                    |
+When Java 8 added default methods, the diamond became possible with interfaces too:
 
----
+```java
+interface A {
+    default void greet() { System.out.println("Hello from A"); }
+}
+interface B extends A {
+    default void greet() { System.out.println("Hello from B"); }
+}
+interface C extends A {
+    default void greet() { System.out.println("Hello from C"); }
+}
 
-## When to Use Interface?
+class D implements B, C { }   // which greet() does D get?
+```
 
-1. Define a contract/capability
-2. Multiple inheritance needed
-3. Unrelated classes need same behavior
-4. Want to achieve loose coupling
-
-**Examples:**
-- `Flyable` - anything that can fly (bird, plane)
-- `Comparable` - anything that can be compared
-- `Serializable` - anything that can be serialized
+Java resolves this with **3 clear rules**.
 
 ---
 
-## Key Points
+### Rule 1 — Class always wins over interface
 
-✓ Interface is a contract (WHAT, not HOW)
-✓ Use `implements` keyword
-✓ Can implement multiple interfaces
-✓ All methods are `public abstract` by default (before Java 8)
-✓ All fields are `public static final` by default
-✓ Default methods provide default implementation (Java 8+)
-✓ Static methods provide utility functions (Java 8+)
-✓ Cannot instantiate interface
-✓ Class must implement all abstract methods
+If the class itself provides a body, it wins. No conflict.
+
+```java
+class D implements B, C {
+    @Override
+    public void greet() {
+        System.out.println("Hello from D");  // D decides — end of story
+    }
+}
+```
 
 ---
 
-## Real-World Analogy
+### Rule 2 — More specific interface wins
 
-**Remote Control Interface:**
-- Defines buttons: power(), volumeUp(), volumeDown()
-- Different devices (TV, AC, Speaker) implement differently
-- Same interface, different implementations
-- Can control any device through interface
+If one interface extends another, the child interface's default method wins automatically.
 
-This is an interface!
+```java
+interface A {
+    default void greet() { System.out.println("Hello from A"); }
+}
+interface B extends A {
+    @Override
+    default void greet() { System.out.println("Hello from B"); }
+}
+
+class D implements A, B { }   // B is more specific — B's greet() wins, no override needed
+
+new D().greet();   // Hello from B
+```
+
+---
+
+### Rule 3 — Two unrelated interfaces conflict → class MUST override
+
+If two interfaces at the same level both have the same default method, Java forces the implementing class to resolve it. Compile error if it doesn't.
+
+```java
+interface B {
+    default void greet() { System.out.println("Hello from B"); }
+}
+interface C {
+    default void greet() { System.out.println("Hello from C"); }
+}
+
+class D implements B, C {
+    @Override
+    public void greet() {
+        B.super.greet();   // explicitly pick B's version
+        // C.super.greet();   — or pick C's version
+        // or write your own logic entirely
+    }
+}
+```
+
+`InterfaceName.super.method()` is how you explicitly call a specific interface's default method.
+
+---
+
+### Why interfaces can solve it but classes cannot
+
+| | Class Inheritance | Interface |
+|---|---|---|
+| Multiple inheritance | Not allowed | Allowed |
+| Diamond problem | Unsolvable — Java blocks it | Resolved with 3 rules |
+| Conflict resolution | No mechanism | Class overrides + `Interface.super.method()` |
+| Why safe? | Blocked entirely | Class always has the final say |
+
+The fundamental difference: with classes Java has no safe way to decide — so it forbids it. With interfaces, the **implementing class always has the final say**. Even when two interfaces conflict, Java forces you to write the resolution explicitly — making it controlled, not ambiguous.
+
+---
+
+## Common Mistakes
+
+### Trying to instantiate an interface
+```java
+Payable p = new Payable();   // COMPILE ERROR — interface cannot be instantiated
+Payable p = new CashPayment("Alice");  // correct
+```
+
+### Forgetting to implement all abstract methods
+```java
+class CashPayment implements Payable {
+    @Override
+    public void pay(double amount) { ... }
+    // forgot getPaymentMethod() — COMPILE ERROR
+}
+```
+
+### Calling static method on an instance
+```java
+Payable.validate(500);   // correct
+cash.validate(500);      // works but misleading — always use interface name
+```
+
+---
+
+## Files in this folder
+
+| File | What it shows |
+|---|---|
+| `Payable.java` | Main interface — all 5 method types + constant |
+| `Taxable.java` | Second interface — for multiple interface demo |
+| `Refundable.java` | Interface extending Payable — adds refund contract |
+| `CashPayment.java` | Implements Payable, uses default method as-is |
+| `BkashPayment.java` | Implements Payable, overrides default method |
+| `CardPayment.java` | Implements Payable + Taxable (multiple interfaces) |
+| `OnlinePayment.java` | Implements Refundable (interface extending interface) |
+| `InterfaceDemo.java` | Full demo — all concepts in one place |

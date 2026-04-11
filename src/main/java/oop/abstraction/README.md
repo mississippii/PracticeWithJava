@@ -1,289 +1,275 @@
-# 05. Abstraction - Hiding Implementation
+# Abstraction — Hiding Implementation Details
 
 ## What is Abstraction?
-Hiding implementation details and showing only essential features/functionality.
 
-**Focus on "WHAT" an object does, not "HOW" it does it.**
+Abstraction means showing **what** an object does, while hiding **how** it does it.
 
----
+The caller knows the contract (method names and what they return) but has no idea about the internal implementation.
 
-## Why Abstraction?
-
-1. **Simplification** - Hide complexity
-2. **Flexibility** - Change implementation without affecting users
-3. **Security** - Hide internal logic
-4. **Reduce Duplication** - Common interface for different implementations
+**Real-world analogy:** You press the accelerator in a car — you know *what* it does (speed up). You don't know *how* the engine, fuel injection, and transmission work together. That complexity is hidden from you.
 
 ---
 
-## How to Achieve Abstraction?
+## Two ways to achieve abstraction in Java
 
-1. **Abstract Classes** (0-100% abstraction)
-2. **Interfaces** (100% abstraction)
+| | Abstract Class | Interface |
+|---|---|---|
+| Keyword | `abstract class` | `interface` |
+| Abstraction level | Partial (some methods can have body) | Full (before Java 8, no method bodies) |
+| Constructor | Yes | No |
+| Fields | Yes (any type) | Only `public static final` constants |
+| Inheritance | `extends` (single) | `implements` (multiple) |
+| When to use | Related classes sharing common code | Unrelated classes sharing a contract |
+
+This folder focuses on **abstract classes**.
 
 ---
 
 ## Abstract Class
 
-### Definition
-A class declared with `abstract` keyword that cannot be instantiated.
-
-### Features
-- Cannot create objects
-- Can have abstract methods (no body)
-- Can have concrete methods (with body)
-- Can have constructors
-- Can have static methods
-- Can have fields (instance variables)
-- Can have any access modifiers
-
-### Syntax
+A class declared with `abstract` — it defines the contract but **cannot be instantiated**.
 
 ```java
-abstract class ClassName {
-    // Abstract method (no body)
-    abstract void methodName();
+// Cannot do this:
+Shape shape = new Shape("Red");  // COMPILE ERROR
 
-    // Concrete method (with body)
-    void concreteMethod() {
-        // implementation
-    }
+// Must use a concrete subclass:
+Shape circle = new Circle("Red", 5.0);
+```
+
+### It can have two types of methods:
+
+**Abstract method** — no body, just the signature. Every concrete child class MUST implement it.
+```java
+public abstract double area();       // no body — child must implement
+public abstract double perimeter();  // no body — child must implement
+```
+
+**Concrete method** — has a body. Shared by all child classes. Can be overridden but doesn't have to be.
+```java
+public void displayColor() {
+    System.out.println("Color: " + color);  // same for all shapes
 }
 ```
 
 ---
 
-## Abstract Method
+## How this folder uses it
 
-### Definition
-Method declared without implementation (no body).
+```
+Shape (abstract)
+├── area()        — abstract, no body
+├── perimeter()   — abstract, no body
+├── displayColor()— concrete, shared by all
+└── describe()    — concrete, can be overridden
 
-### Rules
-1. Must be declared with `abstract` keyword
-2. Has no body (ends with semicolon)
-3. Must be in abstract class
-4. Child class must override (unless child is also abstract)
+Circle    extends Shape  →  implements area(), perimeter(), overrides describe()
+Rectangle extends Shape  →  implements area(), perimeter(), overrides describe()
+Triangle  extends Shape  →  implements area(), perimeter(), overrides describe()
+```
+
+Each shape calculates `area()` and `perimeter()` differently. The abstract class forces every shape to provide its own implementation — you cannot forget.
+
+---
+
+## Abstract class can have a constructor
+
+Even though you cannot instantiate an abstract class directly, it can have a constructor. Child classes call it using `super()`.
 
 ```java
-abstract void display();  // Abstract method
+protected Shape(String color) {
+    this.color = color;  // sets up shared state for all shapes
+}
+
+public Circle(String color, double radius) {
+    super(color);   // calls Shape's constructor
+    this.radius = radius;
+}
 ```
 
 ---
 
-## Complete Example
+## Runtime polymorphism with abstraction
+
+This is where it comes together. A `Shape` reference can hold any concrete shape. Java picks the right `area()` at runtime.
 
 ```java
-// Abstract class
-abstract class Animal {
-    String name;
+Shape circle    = new Circle("Red", 5.0);
+Shape rectangle = new Rectangle("Blue", 4.0, 6.0);
+Shape triangle  = new Triangle("Green", 3.0, 4.0);
 
-    // Constructor (allowed in abstract class)
-    Animal(String name) {
-        this.name = name;
-    }
+Shape[] shapes = { circle, rectangle, triangle };
 
-    // Abstract method - no implementation
-    abstract void sound();
-
-    // Abstract method
-    abstract void move();
-
-    // Concrete method - with implementation
-    void sleep() {
-        System.out.println(name + " is sleeping");
-    }
-
-    // Concrete method
-    void displayInfo() {
-        System.out.println("Animal: " + name);
-    }
+for (Shape shape : shapes) {
+    System.out.println(shape.area());       // each shape's own calculation
+    System.out.println(shape.perimeter());  // each shape's own calculation
+    shape.displayColor();                   // shared — runs from Shape
+    shape.describe();                       // overridden in each shape
 }
-
-// Concrete class - implements all abstract methods
-class Dog extends Animal {
-    Dog(String name) {
-        super(name);
-    }
-
-    @Override
-    void sound() {
-        System.out.println(name + " barks: Woof!");
-    }
-
-    @Override
-    void move() {
-        System.out.println(name + " runs on four legs");
-    }
-}
-
-class Bird extends Animal {
-    Bird(String name) {
-        super(name);
-    }
-
-    @Override
-    void sound() {
-        System.out.println(name + " chirps");
-    }
-
-    @Override
-    void move() {
-        System.out.println(name + " flies in the sky");
-    }
-}
-
-// Usage
-// Animal animal = new Animal("Generic");  // ERROR: Cannot instantiate
-Animal dog = new Dog("Buddy");
-Animal bird = new Bird("Sparrow");
-
-dog.sound();         // Buddy barks: Woof!
-dog.move();          // Buddy runs on four legs
-dog.sleep();         // Buddy is sleeping (inherited)
-
-bird.sound();        // Sparrow chirps
-bird.move();         // Sparrow flies in the sky
 ```
 
----
-
-## When to Use Abstract Class?
-
-1. Want to share code among related classes
-2. Have common fields and methods
-3. Need constructors
-4. Want to provide default implementation
-5. Have a "IS-A" relationship
-
-**Example:** Animal → Dog, Cat (share common behavior)
+The loop doesn't know or care whether it's dealing with a Circle, Rectangle, or Triangle. It just calls `area()` and Java figures out the rest at runtime.
 
 ---
 
-## Files in This Folder
+## Access modifiers matter
 
-1. **AbstractClassExample.java** - Basic abstract class
-2. **ShapeExample.java** - Shapes with abstract area calculation
-3. **VehicleExample.java** - Vehicle hierarchy
-4. **AbstractVsInterface.java** - Comparison with interface
-5. **PayCalculator.java** *(existing)* - Payment calculation abstraction
-6. **HrManager.java** *(existing)* - HR management example
-
----
-
-## Real-World Example: Shape
+A common mistake is forgetting `public` on overriding methods:
 
 ```java
-abstract class Shape {
-    String color;
+// Wrong — package-private (no modifier)
+double area() { ... }
 
-    Shape(String color) {
-        this.color = color;
-    }
-
-    // Abstract methods - each shape calculates differently
-    abstract double area();
-    abstract double perimeter();
-
-    // Concrete method - same for all shapes
-    void displayColor() {
-        System.out.println("Color: " + color);
-    }
-}
-
-class Circle extends Shape {
-    double radius;
-
-    Circle(String color, double radius) {
-        super(color);
-        this.radius = radius;
-    }
-
-    @Override
-    double area() {
-        return Math.PI * radius * radius;
-    }
-
-    @Override
-    double perimeter() {
-        return 2 * Math.PI * radius;
-    }
-}
-
-class Rectangle extends Shape {
-    double length, width;
-
-    Rectangle(String color, double length, double width) {
-        super(color);
-        this.length = length;
-        this.width = width;
-    }
-
-    @Override
-    double area() {
-        return length * width;
-    }
-
-    @Override
-    double perimeter() {
-        return 2 * (length + width);
-    }
-}
-
-// Usage
-Shape circle = new Circle("Red", 5);
-System.out.println("Circle Area: " + circle.area());
-circle.displayColor();
-
-Shape rectangle = new Rectangle("Blue", 4, 6);
-System.out.println("Rectangle Area: " + rectangle.area());
+// Correct — public, accessible from anywhere
+@Override
+public double area() { ... }
 ```
+
+The overriding method cannot be MORE restrictive than the parent. Since the abstract method is `public`, the implementation must also be `public`.
 
 ---
 
-## Rules for Abstract Class
+## Math.PI vs custom PI constant
 
-✓ Cannot instantiate (no objects)
-✓ Can have 0 or more abstract methods
-✓ Can have concrete methods
-✓ Can have constructors
-✓ Can have static methods
-✓ Can have final methods
-✓ Can have instance variables
-✓ Child must implement all abstract methods (or be abstract)
-✓ Use `extends` keyword to inherit
+Avoid defining your own PI:
+```java
+protected final double PI = 3.14159;  // less accurate, wastes memory on every instance
+```
+
+Use Java's built-in constant:
+```java
+Math.PI  // 3.141592653589793 — more accurate, no memory overhead
+```
 
 ---
 
 ## Abstract Class vs Concrete Class
 
-| Feature              | Abstract Class        | Concrete Class        |
-|----------------------|-----------------------|-----------------------|
-| Instantiation        | ❌ Cannot             | ✅ Can                |
-| Abstract methods     | ✅ Can have           | ❌ Cannot have        |
-| Concrete methods     | ✅ Can have           | ✅ Can have           |
-| Constructor          | ✅ Can have           | ✅ Can have           |
-| Purpose              | Base class            | Create objects        |
+| | Abstract Class | Concrete Class |
+|---|---|---|
+| Can instantiate? | No | Yes |
+| Abstract methods? | Yes | No |
+| Concrete methods? | Yes | Yes |
+| Constructor? | Yes (called via super) | Yes |
+| Purpose | Define contract + shared code | Create objects |
 
 ---
 
-## Key Points
+## `final` and `static` methods in abstract classes
 
-✓ Abstraction hides implementation details
-✓ Abstract class cannot be instantiated
-✓ Abstract method has no body
-✓ Child class must override all abstract methods
-✓ Can have both abstract and concrete methods
-✓ Use abstract class when classes are related and share code
-✓ Abstraction = Security + Flexibility
+Abstract classes can also have `final` and `static` methods. Same rules apply.
+
+### `final` method — inherited but cannot be overridden
+
+```java
+abstract class Shape {
+    public final void printType() {
+        System.out.println("I am a Shape");
+    }
+}
+
+class Circle extends Shape {
+    @Override
+    public void printType() { }   // COMPILE ERROR: cannot override final method
+
+    // But Circle can call it — it IS inherited
+    // circle.printType();  →  I am a Shape ✓
+}
+```
+
+Use `final` in an abstract class when you want to share a method with all subclasses but **guarantee no subclass changes it**.
 
 ---
 
-## Real-World Analogy
+### `static` method — inherited but cannot be overridden (method hiding)
 
-**Car:**
-- You know WHAT car does (start, stop, accelerate)
-- You don't know HOW engine works internally
-- Different cars (Honda, Toyota) implement differently
-- Same interface, different implementation
+```java
+abstract class Shape {
+    public static void info() {
+        System.out.println("Shape static method");
+    }
+}
 
-This is abstraction!
+class Circle extends Shape {
+    public static void info() {   // hides Shape's info(), does NOT override
+        System.out.println("Circle static method");
+    }
+}
+
+Circle.info();    // Circle static method
+
+Shape s = new Circle("Red", 5.0);
+s.info();         // Shape static method ← parent's version, decided at compile time
+```
+
+Static methods are bound at **compile time** based on the reference type — they do not participate in runtime polymorphism.
+
+---
+
+### `private` method — NOT inherited at all
+
+```java
+abstract class Shape {
+    private void internalCalc() {
+        System.out.println("internal");
+    }
+}
+
+class Circle extends Shape {
+    public void test() {
+        internalCalc();   // COMPILE ERROR: private access in Shape
+    }
+}
+```
+
+---
+
+### Summary table
+
+| Method type | Inherited? | Can override? | Polymorphism? |
+|---|---|---|---|
+| `public` / `protected` | Yes | Yes | Yes — runtime |
+| `abstract` | Yes (must implement) | Yes — required | Yes — runtime |
+| `final` | Yes (child can call it) | No — compile error | No |
+| `static` | Yes (accessible via child) | No — method hiding | No — compile time |
+| `private` | No | No | No |
+
+---
+
+## Common Mistakes
+
+### Trying to instantiate an abstract class
+```java
+Shape shape = new Shape("Red");   // COMPILE ERROR
+```
+
+### Forgetting to implement all abstract methods
+```java
+class Triangle extends Shape {
+    @Override
+    public double area() { return 0.5 * base * height; }
+
+    // forgot perimeter() — COMPILE ERROR: Triangle must implement perimeter()
+}
+```
+
+### Assuming `3 * base` is correct for triangle perimeter
+```java
+// Wrong — only works for equilateral triangle
+return 3 * base;
+
+// Correct for right triangle (base + height + hypotenuse)
+return base + height + Math.sqrt(base * base + height * height);
+```
+
+---
+
+## Files in this folder
+
+| File | What it shows |
+|---|---|
+| `Shape.java` | Abstract class — defines the contract |
+| `Circle.java` | Concrete class — implements area and perimeter for circle |
+| `Rectangle.java` | Concrete class — implements area and perimeter for rectangle |
+| `Triangle.java` | Concrete class — implements area and perimeter for right triangle |
+| `ShapeExample.java` | Demo — shows polymorphism with all shapes |

@@ -1,160 +1,77 @@
-package oop._05_abstraction;
+package oop.abstraction;
 
-/**
- * Demonstrates Abstract Classes and Methods
- * - Abstract class cannot be instantiated
- * - Abstract methods must be overridden
- * - Can have both abstract and concrete methods
- * - Can have constructors and fields
- */
 public class ShapeExample {
     public static void main(String[] args) {
-        System.out.println("=== Abstract Class Demo ===\n");
 
-        // Cannot instantiate abstract class
-        // Shape shape = new Shape("Red");  // ERROR
-
-        // Create concrete objects
-        Shape circle = new Circle("Red", 5.0);
+        Shape circle    = new Circle("Red", 5.0);
         Shape rectangle = new Rectangle("Blue", 4.0, 6.0);
-        Shape triangle = new Triangle("Green", 3.0, 4.0);
+        Shape triangle  = new Triangle("Green", 3.0, 4.0);
 
-        // Polymorphic array
-        Shape[] shapes = {circle, rectangle, triangle};
+        Shape[] shapes = { circle, rectangle, triangle };
 
+        // -------------------------------------------------------
+        // 1. Abstract methods — runtime polymorphism
+        // -------------------------------------------------------
+        // area() and perimeter() are abstract — each shape has its own version.
+        // Java picks the right one at runtime based on the actual object.
+
+        System.out.println("=== Area & Perimeter (runtime polymorphism) ===");
         for (Shape shape : shapes) {
-            System.out.println("--- " + shape.getClass().getSimpleName() + " ---");
-            shape.displayColor();  // Concrete method from abstract class
-            System.out.println("Area: " + shape.area());  // Abstract method implemented
-            System.out.println("Perimeter: " + shape.perimeter());  // Abstract method
-            shape.describe();  // Concrete method
-            System.out.println();
+            System.out.println(shape.getClass().getSimpleName()
+                    + " → area: " + String.format("%.2f", shape.area())
+                    + ", perimeter: "  + String.format("%.2f", shape.perimeter()));
         }
 
-        // Calculate total area
-        double totalArea = 0;
+        System.out.println();
+
+        // -------------------------------------------------------
+        // 2. Concrete method — inherited as-is
+        // -------------------------------------------------------
+        // displayColor() has a body in Shape and none of the subclasses override it.
+        // All shapes just use Shape's version.
+
+        System.out.println("=== displayColor (inherited concrete method) ===");
         for (Shape shape : shapes) {
-            totalArea += shape.area();
+            shape.displayColor();
         }
-        System.out.println("Total Area of all shapes: " + totalArea);
-    }
-}
 
-// Abstract class
-abstract class Shape {
-    // Fields (allowed in abstract class)
-    protected String color;
-    protected final double PI = 3.14159;
+        System.out.println();
 
-    // Constructor (allowed in abstract class)
-    Shape(String color) {
-        this.color = color;
-        System.out.println("Shape constructor called");
-    }
+        // -------------------------------------------------------
+        // 3. final method — inherited but CANNOT be overridden
+        // -------------------------------------------------------
+        // printType() is final in Shape. Every shape can call it,
+        // but no subclass is allowed to provide its own version.
 
-    // Abstract methods (no body) - must be implemented by child classes
-    abstract double area();
-    abstract double perimeter();
+        System.out.println("=== printType (final — cannot be overridden) ===");
+        for (Shape shape : shapes) {
+            shape.printType();   // always prints "I am a Shape" — locked by final
+        }
 
-    // Concrete method (with body) - inherited by child classes
-    void displayColor() {
-        System.out.println("Color: " + color);
-    }
+        System.out.println();
 
-    // Concrete method
-    void describe() {
-        System.out.println("This is a geometric shape");
-    }
+        // -------------------------------------------------------
+        // 4. static method — method hiding, NOT overriding
+        // -------------------------------------------------------
+        // Static methods are resolved at COMPILE TIME from the reference type.
+        // They do NOT participate in runtime polymorphism.
 
-    // Getter
-    String getColor() {
-        return color;
-    }
+        System.out.println("=== category (static — method hiding) ===");
+        Shape.category();     // Category: Geometric Shape — Shape's version
 
-    // Setter
-    void setColor(String color) {
-        this.color = color;
-    }
-}
+        Shape s = new Circle("Red", 5.0);
+        s.category();         // Category: Geometric Shape — reference type is Shape,
+                              // so Shape's version runs even though object is Circle
 
-// Concrete class 1
-class Circle extends Shape {
-    private double radius;
+        System.out.println();
 
-    Circle(String color, double radius) {
-        super(color);  // Call abstract class constructor
-        this.radius = radius;
-    }
+        // -------------------------------------------------------
+        // 5. describe() — concrete method that subclasses CAN override
+        // -------------------------------------------------------
 
-    // Must implement all abstract methods
-    @Override
-    double area() {
-        return PI * radius * radius;
-    }
-
-    @Override
-    double perimeter() {
-        return 2 * PI * radius;
-    }
-
-    // Can override concrete methods too
-    @Override
-    void describe() {
-        System.out.println("Circle with radius " + radius);
-    }
-}
-
-// Concrete class 2
-class Rectangle extends Shape {
-    private double length;
-    private double width;
-
-    Rectangle(String color, double length, double width) {
-        super(color);
-        this.length = length;
-        this.width = width;
-    }
-
-    @Override
-    double area() {
-        return length * width;
-    }
-
-    @Override
-    double perimeter() {
-        return 2 * (length + width);
-    }
-
-    @Override
-    void describe() {
-        System.out.println("Rectangle with length " + length + " and width " + width);
-    }
-}
-
-// Concrete class 3
-class Triangle extends Shape {
-    private double base;
-    private double height;
-
-    Triangle(String color, double base, double height) {
-        super(color);
-        this.base = base;
-        this.height = height;
-    }
-
-    @Override
-    double area() {
-        return 0.5 * base * height;
-    }
-
-    @Override
-    double perimeter() {
-        // Assuming equilateral for simplicity
-        return 3 * base;
-    }
-
-    @Override
-    void describe() {
-        System.out.println("Triangle with base " + base + " and height " + height);
+        System.out.println("=== describe (overridden concrete method) ===");
+        for (Shape shape : shapes) {
+            shape.describe();   // each shape's own describe() runs
+        }
     }
 }

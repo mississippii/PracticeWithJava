@@ -1,286 +1,285 @@
-# 03. Inheritance - Code Reusability
+# Inheritance & Runtime Polymorphism
 
 ## What is Inheritance?
-Mechanism where a new class (child/derived/subclass) acquires properties and behaviors from an existing class (parent/base/superclass).
 
-**"IS-A" relationship**
+A child class acquires the fields and methods of a parent class using the `extends` keyword.
 
----
-
-## Why Inheritance?
-
-1. **Code Reusability** - Don't repeat code
-2. **Extensibility** - Add new features to existing code
-3. **Method Overriding** - Change behavior in child class
-4. **Polymorphism** - Achieve runtime polymorphism
-
----
-
-## Syntax
-
-```java
-class Parent {
-    // parent members
-}
-
-class Child extends Parent {
-    // child members + inherited members
-}
-```
-
----
-
-## Types of Inheritance in Java
-
-### 1. Single Inheritance
-One child extends one parent.
+**"IS-A" relationship** — Dog IS-A Animal, Cow IS-A Animal.
 
 ```java
 class Animal { }
-class Dog extends Animal { }
+class Dog extends Animal { }  // Dog inherits everything from Animal
 ```
-
-### 2. Multi-level Inheritance
-Chain of inheritance.
-
-```java
-class Animal { }
-class Mammal extends Animal { }
-class Dog extends Mammal { }
-```
-
-### 3. Hierarchical Inheritance
-Multiple children extend same parent.
-
-```java
-class Animal { }
-class Dog extends Animal { }
-class Cat extends Animal { }
-```
-
-### ❌ Multiple Inheritance (Not Supported)
-One class cannot extend multiple classes (to avoid diamond problem).
-
-```java
-// Not allowed in Java
-class C extends A, B { }  // ERROR
-```
-
-*Note: Java supports multiple inheritance through interfaces.*
 
 ---
 
-## Key Concepts
+## What the child gets from the parent
 
-### 1. `super` Keyword
-Reference to parent class. Used to:
-- Call parent constructor
-- Access parent methods
-- Access parent fields
+- All `public` and `protected` fields and methods
+- Does NOT get `private` fields/methods
+- Does NOT get constructors — must call parent constructor using `super()`
+
+---
+
+## `super` keyword
+
+Used to call the parent constructor or parent methods from the child class.
 
 ```java
-class Parent {
-    int value = 10;
-
-    Parent() {
-        System.out.println("Parent constructor");
-    }
-
-    void display() {
-        System.out.println("Parent method");
-    }
-}
-
-class Child extends Parent {
-    int value = 20;
-
-    Child() {
-        super();  // Call parent constructor
-        System.out.println("Child constructor");
-    }
-
-    void show() {
-        System.out.println(value);         // 20 (child)
-        System.out.println(super.value);   // 10 (parent)
-        super.display();                   // Call parent method
+class Dog extends Animal {
+    public Dog(String name, String color) {
+        super(name, color);  // calls Animal's constructor — must be the first line
     }
 }
 ```
 
-### 2. Method Overriding
-Child class provides specific implementation of parent's method.
+Without `super(name, color)`, the parent's fields `name` and `color` would never be initialized.
+
+---
+
+## Method Overriding
+
+Child class provides its own implementation of a method that already exists in the parent.
 
 ```java
 class Animal {
-    void sound() {
-        System.out.println("Animal makes sound");
+    protected void eat() {
+        System.out.println("Animal eats");
     }
 }
 
 class Dog extends Animal {
-    @Override  // Annotation (optional but recommended)
-    void sound() {
-        System.out.println("Dog barks");
+    @Override                          // optional but recommended
+    public void eat() {
+        System.out.println("Dog is eating");
     }
 }
 ```
 
-### 3. Constructor Chaining
-Child constructor automatically calls parent's no-arg constructor.
+**Rules:**
+1. Same method name and parameters as the parent
+2. Return type must be the same (or a subtype)
+3. Access modifier can be same or less restrictive (`protected` → `public` is fine)
+4. Cannot override `final`, `static`, or `private` methods
+
+---
+
+## What can and cannot be overridden
+
+### `final` method — inherited but cannot be overridden
+
+The child can call a `final` method, but cannot provide its own version.
 
 ```java
-class Parent {
-    Parent() {
-        System.out.println("Parent constructor");
+class Animal {
+    public final void breathe() {
+        System.out.println("Animal is breathing");
     }
 }
 
-class Child extends Parent {
-    Child() {
-        // super(); is called automatically
-        System.out.println("Child constructor");
+class Dog extends Animal {
+    @Override
+    public void breathe() { }   // COMPILE ERROR: cannot override final method
+}
+
+// But the child can still call it — it IS inherited
+Dog dog = new Dog("Rex", "White");
+dog.breathe();   // Animal is breathing ✓
+```
+
+**Why `final`?** The parent is saying: "This behavior must stay exactly as I defined it. No child is allowed to change it."
+
+---
+
+### `static` method — inherited but cannot be overridden (method hiding)
+
+Static methods belong to the **class**, not to any object. When a child defines a static method with the same name, it **hides** the parent's version — it does not override it.
+
+The key difference shows up with a parent reference:
+
+```java
+class Animal {
+    public static void describe() {
+        System.out.println("I am an Animal");
     }
 }
 
+class Dog extends Animal {
+    public static void describe() {   // hides Animal's describe(), does NOT override
+        System.out.println("I am a Dog");
+    }
+}
+
+Dog.describe();    // I am a Dog      ✓ — called directly on Dog class
+
+Animal a = new Dog("Rex", "White");
+a.describe();      // I am an Animal  ← parent's version! decided at compile time
+```
+
+With regular instance methods — Java decides at **runtime** based on the actual object.  
+With static methods — Java decides at **compile time** based on the reference type.
+
+This is why static methods do not participate in runtime polymorphism.
+
+---
+
+### `private` method — NOT inherited at all
+
+Private methods are completely invisible to the child class.
+
+```java
+class Animal {
+    private void secret() {
+        System.out.println("Animal secret");
+    }
+}
+
+class Dog extends Animal {
+    public void test() {
+        secret();   // COMPILE ERROR: secret() has private access in Animal
+    }
+}
+```
+
+---
+
+### Summary table
+
+| Method type | Inherited? | Can override? | Polymorphism? |
+|---|---|---|---|
+| `public` / `protected` | Yes | Yes | Yes — runtime |
+| `final` | Yes (child can call it) | No — compile error | No |
+| `static` | Yes (accessible via child class) | No — method hiding | No — compile time |
+| `private` | No | No | No |
+
+---
+
+## Runtime Polymorphism
+
+A **parent reference** can hold a **child object**.  
+Java decides at **runtime** which version of the method to call — based on the actual object, not the reference type.
+
+```java
+Animal a1 = new Dog("Husky", "Black");
+Animal a2 = new Cow("Bessie", "Brown");
+
+a1.eat();   // Dog is eating  — Java picks Dog's eat() at runtime
+a2.eat();   // Cow is eating  — Java picks Cow's eat() at runtime
+```
+
+Both references are of type `Animal`, but Java looks at the **actual object** (`Dog`, `Cow`) to decide which `eat()` to run. That decision happens while the program is running — hence **runtime** polymorphism.
+
+### Why is this useful?
+
+You can write one loop that works for every animal — no if/else needed:
+
+```java
+Animal[] animals = { new Dog("Rex", "White"), new Cow("Bessie", "Brown") };
+
+for (Animal animal : animals) {
+    animal.eat();   // each calls its own eat()
+}
 // Output:
-// Parent constructor
-// Child constructor
+// Dog is eating
+// Cow is eating
 ```
 
----
-
-## Files in This Folder
-
-1. **SingleInheritance.java** - Basic inheritance example
-2. **MultiLevelInheritance.java** - Chain of inheritance
-3. **HierarchicalInheritance.java** - Multiple children
-4. **SuperKeyword.java** - Usage of super
-5. **MethodOverriding.java** - Override parent methods
-6. **ConstructorChaining.java** - Constructor execution order
-7. **Animal.java, Dog.java** *(existing)* - Animal hierarchy
-8. **Account.java, SavingsAccount.java** *(existing)* - Banking example
-9. **Product.java, DigitalProduct.java** *(existing)* - Product hierarchy
+If you add a new `Cat` class tomorrow, this loop works without any changes.
 
 ---
 
-## Complete Example
+## Does `@Override` affect runtime polymorphism?
+
+**No.** Runtime polymorphism works with or without `@Override`.
 
 ```java
-// Parent class
-class Vehicle {
-    String brand;
-    int speed;
-
-    Vehicle(String brand) {
-        this.brand = brand;
-        System.out.println("Vehicle constructor");
-    }
-
-    void start() {
-        System.out.println("Vehicle starting...");
-    }
-
-    void displayInfo() {
-        System.out.println("Brand: " + brand + ", Speed: " + speed);
+// Works perfectly — no @Override needed for polymorphism to work
+class Cow extends Animal {
+    public void eat() {
+        System.out.println("Cow is eating");
     }
 }
 
-// Child class
-class Car extends Vehicle {
-    int doors;
-
-    Car(String brand, int doors) {
-        super(brand);  // Call parent constructor
-        this.doors = doors;
-        System.out.println("Car constructor");
-    }
-
-    @Override
-    void start() {
-        super.start();  // Call parent method
-        System.out.println("Car engine starting...");
-    }
-
-    @Override
-    void displayInfo() {
-        super.displayInfo();  // Call parent method
-        System.out.println("Doors: " + doors);
-    }
-}
-
-// Usage
-Car car = new Car("Toyota", 4);
-car.speed = 120;
-car.start();
-car.displayInfo();
-
-/* Output:
-Vehicle constructor
-Car constructor
-Vehicle starting...
-Car engine starting...
-Brand: Toyota, Speed: 120
-Doors: 4
-*/
+Animal cow = new Cow("Milk", "White");
+cow.eat();   // Cow is eating ✓
 ```
 
----
+Java overrides the method based on the actual object type at runtime.  
+`@Override` is only a **compile-time safety check** — it protects you from typos:
 
-## Rules for Overriding
+```java
+// Without @Override — typo creates a silent bug
+class Cow extends Animal {
+    public void eet() {              // typo! different method name
+        System.out.println("Cow is eating");
+    }
+}
 
-1. Method signature must be same (name + parameters)
-2. Return type must be same or covariant
-3. Access modifier: Same or less restrictive
-   ```java
-   // Parent
-   protected void method() { }
+Animal cow = new Cow("Milk", "White");
+cow.eat();   // Animal eats ← wrong! parent's eat() runs, no error
+```
 
-   // Child - Valid options
-   protected void method() { }  // Same
-   public void method() { }     // Less restrictive
+```java
+// With @Override — compiler catches it immediately
+class Cow extends Animal {
+    @Override
+    public void eet() {              // COMPILE ERROR: does not override anything
+        System.out.println("Cow is eating");
+    }
+}
+```
 
-   // Child - Invalid
-   private void method() { }    // More restrictive - ERROR
-   ```
-4. Cannot override:
-   - `static` methods (it's hiding, not overriding)
-   - `final` methods
-   - `private` methods (not inherited)
-5. Exception: Can throw same, subclass, or no exception (for checked)
-
----
-
-## Inheritance vs Composition
-
-### When to use Inheritance?
-- True "IS-A" relationship
-- Example: Dog IS-A Animal ✓
-
-### When to use Composition?
-- "HAS-A" relationship
-- Example: Car HAS-A Engine ✓
-- Prefer composition over inheritance for flexibility
+| | Without `@Override` | With `@Override` |
+|---|---|---|
+| Runtime polymorphism works? | Yes | Yes |
+| Typo protection | No — silent bug | Yes — compile error |
+| Recommended? | No | Yes |
 
 ---
 
-## Key Points
+## What is NOT overridden
 
-✓ Use `extends` keyword for inheritance
-✓ Java supports single inheritance only (for classes)
-✓ Child class inherits all non-private members
-✓ Use `super` to access parent members
-✓ Use `@Override` annotation for clarity
-✓ Constructor chaining happens automatically
-✓ Inheritance is for "IS-A" relationship
+`makeSound()` exists in `Animal` but neither `Dog` nor `Cow` overrides it.  
+When called on a child object, Java walks up to `Animal` and uses its version:
+
+```java
+Animal dog = new Dog("Rex", "White");
+dog.makeSound();   // Animal makes sound — parent's version runs
+```
+
+This is still inheritance — the child simply uses the parent method as-is.
 
 ---
 
-## Real-World Analogy
+## Compile-time vs Runtime Polymorphism
 
-**Family Tree:**
-- Parent has certain traits (fields) and behaviors (methods)
-- Child inherits those traits
-- Child can have additional traits
-- Child can override behaviors (do things differently)
+| | Compile-time Polymorphism | Runtime Polymorphism |
+|---|---|---|
+| Also called | Method Overloading | Method Overriding |
+| Decided when? | At compile time | At runtime |
+| Where? | Same class, different parameters | Parent + child class, same signature |
+| Example | `add(int, int)` vs `add(double, double)` | `Animal a = new Dog(); a.eat()` |
 
-This is inheritance!
+---
+
+## Common Mistake — reference type vs object type
+
+```java
+Animal a = new Dog("Rex", "White");
+a.eat();    // Dog is eating ✓  — runtime picks Dog's eat()
+a.bark();   // COMPILE ERROR   — bark() is not defined in Animal
+```
+
+The **reference type** (`Animal`) decides what methods you can call.  
+The **object type** (`Dog`) decides which version actually runs.
+
+---
+
+## Files in this folder
+
+| File | What it shows |
+|---|---|
+| `Animal.java` | Parent class with `eat()` and `makeSound()` |
+| `Dog.java` | Child — overrides `eat()` |
+| `Cow.java` | Child — overrides `eat()` |
+| `InheritanceDemo.java` | Direct call vs runtime polymorphism demo |

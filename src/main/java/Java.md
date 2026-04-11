@@ -49,7 +49,7 @@
 
 ### Interview Preparation
 32. [Interview Questions](#interview-questions-with-answers) - Q1–Q36: Core Java Questions
-33. [Real-World Production & Performance](#q37-why-does-a-java-application-slow-down-over-time-without-throwing-errors) - Q37–Q60: Production Debugging, Memory Leaks, GC, Thread Pools, JVM Tuning
+33. [Real-World Production & Performance](#real-world-java-interview-questions--production--performance) - Q37–Q60: Production Debugging, Memory Leaks, GC, Thread Pools, JVM Tuning
 34. [Java & Microservices](#java--microservices--real-interview-questions) - Q61–Q67: Distributed Systems, Timeouts, Tracing, Caching, Cascading Failures
 35. [More Real-World Java Questions](#more-real-world-java-interview-questions) - Q68–Q72: Parallel Streams, ThreadLocal, HashMap, ExecutorService, Local vs Prod
 
