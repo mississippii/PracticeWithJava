@@ -1,29 +1,73 @@
-# Spring Boot - High-Level Guide
+# Spring Boot — Complete Guide
 
-> **For Experienced Developers**: This guide provides architectural overviews and deep-dive explanations of Spring Boot core concepts.
+> A progressive guide covering everything from how Spring boots up to full microservice architecture.
 
 ---
 
 ## Table of Contents
 
-### Core Concepts
-1. [IOC Container & Application Context](#1-ioc-container--application-context)
-2. [Spring Data JPA](#2-spring-data-jpa)
-3. [Spring Web (REST API)](#3-spring-web-rest-api)
+### Chapter 1: Spring Core — The Heart of Everything
+1. [IoC Container & ApplicationContext](#1-spring-core--the-heart-of-everything)
+   - Why Spring exists
+   - Boot sequence & lifecycle
+   - IoC Container, BeanFactory, ApplicationContext
+   - Dependency Injection
+   - Bean scopes & lifecycle
+   - Auto-configuration
+   - Embedded Server
+   - Threading model
+   - Component stereotypes
+   - Configuration methods
+   - Spring Actuator
+   - Profiles, DevTools, Logging
+
+### Chapter 2: Spring REST — Web Layer
+2. [Spring Web (REST API)](#2-spring-rest--web-layer)
+   - DispatcherServlet & request flow
+   - Building REST controllers
+   - Request/Response handling
+   - Validation
+   - Exception handling
+   - Filters vs Interceptors
+
+### Chapter 3: Spring Data JPA & Hibernate
+3. [Spring Data JPA](#3-spring-data-jpa--hibernate)
+   - Entity mapping & relationships
+   - Repository interface
+   - Transaction management
+   - N+1 problem solutions
+   - Pagination
+
+### Chapter 4: Spring Security
 4. [Spring Security](#4-spring-security)
-5. [Spring Boot Internals](#5-spring-boot-internals)
-6. [Microservices with Spring Cloud](#6-microservices-with-spring-cloud)
-7. [Performance & Best Practices](#7-performance--best-practices)
-8. [Microservice Project Architecture](#8-how-a-microservice-project-works--complete-architecture)
+   - Security filter chain
+   - Basic configuration
+   - JWT Authentication
+   - Method-level security
+
+### Chapter 5: Spring Cloud — Service Discovery
+5. [Eureka Discovery Server](#5-spring-cloud--service-discovery)
+
+### Chapter 6: Spring Cloud — API Gateway
+6. [Spring Cloud Gateway](#6-spring-cloud--api-gateway)
+
+### Chapter 7: Spring Cloud — Resilience & Tracing
+7. [Circuit Breaker + Distributed Tracing](#7-spring-cloud--resilience--tracing)
+
+### Chapter 8: Microservice Architecture
+8. [Complete Microservice Architecture](#8-microservice-architecture)
+
+### Chapter 9: Performance & Best Practices
+9. [Performance & Best Practices](#9-performance--best-practices)
 
 ### Interview Questions
-9. [Core Interview Questions](#interview-questions) - Q1–Q10: Fundamentals
-10. [Production Troubleshooting](#real-world-spring-boot-interview-questions--production-troubleshooting) - Q11–Q40: Deployment, Slowness, Config, Connection Pools, Circuit Breakers, @Transactional, Docker, Graceful Shutdown
-11. [Spring Boot Internals Deep Dive](#spring-boot-internals--interview-deep-dive) - Q41–Q61: Auto-Configuration, Startup Flow, Properties Loading, Fat JAR, DataSource, REST Flow, Logging, Performance Mistakes
+10. [Core Interview Questions](#interview-questions) — Q1–Q10: Fundamentals
+11. [Production Troubleshooting](#real-world-spring-boot-interview-questions--production-troubleshooting) — Q11–Q40
+12. [Spring Boot Internals Deep Dive](#spring-boot-internals--interview-deep-dive) — Q41–Q61
 
 ---
 
-# 1. IOC Container & Application Context
+# 1. Spring Core — The Heart of Everything
 
 ## 1.1 Overview
 
@@ -479,381 +523,350 @@ public class DatabaseConfig { }
 
 ---
 
-# 2. Spring Data JPA
-
-## 2.1 Overview
-
-Spring Data JPA simplifies database access by providing:
-- Repository abstraction
-- Query derivation from method names
-- Custom query support
-- Transaction management
-- Auditing support
-
-### Architecture
-
-```
-Application Layer
-       ↓
-Service Layer (@Service)
-       ↓
-Repository Interface (extends JpaRepository)
-       ↓
-Spring Data JPA Implementation (Auto-generated)
-       ↓
-JPA Provider (Hibernate)
-       ↓
-JDBC Driver
-       ↓
-Database
-```
 
 ---
 
-## 2.2 Entity Mapping
+## Spring Boot Internals
 
-### Basic Entity
+> **How Spring Boot does the magic**: The following subsections explain auto-configuration, the embedded server, and the threading model.
+
+## 1.BI-1 Auto-Configuration
+
+### How It Works
+
+```
+Auto-Configuration Process:
+===========================
+
+1. @SpringBootApplication contains @EnableAutoConfiguration
+
+2. @EnableAutoConfiguration imports AutoConfigurationImportSelector
+
+3. Selector reads META-INF/spring.factories from all JARs
+
+4. Finds all AutoConfiguration classes:
+   ├─> DataSourceAutoConfiguration
+   ├─> JpaRepositoriesAutoConfiguration
+   ├─> SecurityAutoConfiguration
+   └─> ... hundreds more
+
+5. Each @Configuration class has @Conditional annotations:
+   @ConditionalOnClass - Only if class present in classpath
+   @ConditionalOnBean - Only if bean exists
+   @ConditionalOnProperty - Only if property set
+   @ConditionalOnMissingBean - Only if bean doesn't exist
+
+6. Spring evaluates conditions and loads matching configurations
+```
+
+### Example Auto-Configuration
 
 ```java
-@Entity
-@Table(name = "users")
-public class User {
+@Configuration
+@ConditionalOnClass({DataSource.class, EmbeddedDatabaseType.class})
+@ConditionalOnMissingBean(DataSource.class)
+@EnableConfigurationProperties(DataSourceProperties.class)
+public class DataSourceAutoConfiguration {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false, unique = true)
-    private String username;
-
-    @Column(nullable = false)
-    private String email;
-
-    @CreatedDate
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    private LocalDateTime updatedAt;
+    @Bean
+    @ConditionalOnProperty(prefix = "spring.datasource", name = "url")
+    public DataSource dataSource(DataSourceProperties properties) {
+        return properties.initializeDataSourceBuilder().build();
+    }
 }
 ```
 
 ---
 
-## 2.3 Relationships
+## 1.BI-2 Embedded Server
 
-### One-to-Many & Many-to-One
+### Tomcat Startup
+
+```
+Embedded Tomcat Initialization:
+================================
+
+1. ServletWebServerApplicationContext created
+
+2. ServletWebServerFactory bean detected
+   └─> TomcatServletWebServerFactory (default)
+
+3. getWebServer() called
+   ├─> Create Tomcat instance
+   ├─> Configure connector (port, protocol)
+   ├─> Add context (webapp context)
+   └─> Register DispatcherServlet
+
+4. Start Tomcat
+   └─> Tomcat listens on configured port (8080 default)
+
+5. Application ready
+   └─> Log: "Tomcat started on port(s): 8080 (http)"
+```
+
+### Configuration
+
+```yaml
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+    connection-timeout: 20000
+    max-connections: 8192
+```
+
+---
+
+## 1.BI-3 Multi-Threading Model
+
+```
+Request Handling Model:
+=======================
+
+Tomcat Thread Pool (default: 200 threads)
+    ├─> Thread 1 → Request A → DispatcherServlet → Controller → Service → Repository
+    ├─> Thread 2 → Request B → DispatcherServlet → Controller → Service → Repository
+    ├─> Thread 3 → Request C → DispatcherServlet → Controller → Service → Repository
+    └─> ...
+
+Key Points:
+-----------
+1. One thread per request (thread-per-request model)
+2. Thread is blocked during entire request processing
+3. Singleton beans must be thread-safe
+4. Request-scoped beans are thread-local
+5. @Transactional uses ThreadLocal for transaction context
+```
+
+### Thread Safety
 
 ```java
-// One User has Many Posts
-@Entity
-public class User {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+// Thread-safe (Singleton, stateless)
+@Service
+public class UserService {
+    private final UserRepository repository;  // Safe: immutable reference
 
-    @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Post> posts = new ArrayList<>();
-
-    // Helper method
-    public void addPost(Post post) {
-        posts.add(post);
-        post.setAuthor(this);
+    public User getUser(Long id) {
+        return repository.findById(id).orElseThrow();
     }
 }
 
-@Entity
-public class Post {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+// NOT thread-safe (Singleton with mutable state)
+@Service
+public class CounterService {
+    private int count = 0;  // DANGER: shared mutable state
 
-    private String title;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private User author;
-}
-```
-
-### Many-to-Many
-
-```java
-@Entity
-public class Student {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @ManyToMany
-    @JoinTable(
-        name = "student_course",
-        joinColumns = @JoinColumn(name = "student_id"),
-        inverseJoinColumns = @JoinColumn(name = "course_id")
-    )
-    private Set<Course> courses = new HashSet<>();
+    public void increment() {
+        count++;  // Race condition!
+    }
 }
 
-@Entity
-public class Course {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+// Fixed with AtomicInteger
+@Service
+public class CounterService {
+    private final AtomicInteger count = new AtomicInteger(0);
 
-    @ManyToMany(mappedBy = "courses")
-    private Set<Student> students = new HashSet<>();
+    public void increment() {
+        count.incrementAndGet();  // Thread-safe
+    }
 }
 ```
 
 ---
 
-## 2.4 Repository Interface
+---
 
-### Built-in Methods
+## 1.9 Spring Actuator — Built-in Monitoring & Management
+
+> **Why it exists**: In production you need to know if the app is alive, what beans are loaded, what properties are active, and how it performs — without attaching a debugger. Actuator exposes all of this over HTTP endpoints automatically.
+
+### Enable Actuator
+
+Add dependency to `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+```
+
+### Key Endpoints
+
+| Endpoint | What it shows |
+|---|---|
+| `/actuator/health` | App health (UP/DOWN), DB, disk, custom checks |
+| `/actuator/info` | App metadata (version, name — from application.properties) |
+| `/actuator/metrics` | JVM memory, CPU, HTTP request counts, latencies |
+| `/actuator/beans` | All beans loaded in the ApplicationContext |
+| `/actuator/env` | All environment properties and their source |
+| `/actuator/mappings` | All `@RequestMapping` routes |
+| `/actuator/conditions` | Which auto-configurations were applied/skipped and why |
+| `/actuator/loggers` | Active log levels — can be changed at runtime without restart |
+| `/actuator/threaddump` | Current thread states — useful to diagnose deadlocks |
+| `/actuator/heapdump` | Download JVM heap dump for memory leak analysis |
+| `/actuator/httptrace` | Last 100 HTTP requests (requires bean) |
+
+### Configuration
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,beans,env,loggers   # expose only these
+        # include: "*"  ← expose all (only for dev/internal use)
+  endpoint:
+    health:
+      show-details: always    # show DB/disk details, not just UP/DOWN
+  info:
+    env:
+      enabled: true           # show info.* properties in /actuator/info
+```
+
+### Custom Health Indicator
 
 ```java
-public interface UserRepository extends JpaRepository<User, Long> {
-    // Inherited methods:
-    // - save(entity)
-    // - findById(id)
-    // - findAll()
-    // - deleteById(id)
-    // - count()
-    // - existsById(id)
+@Component
+public class DatabaseHealthIndicator implements HealthIndicator {
+
+    @Autowired
+    private DataSource dataSource;
+
+    @Override
+    public Health health() {
+        try (Connection conn = dataSource.getConnection()) {
+            return Health.up()
+                .withDetail("database", "MySQL")
+                .withDetail("status", "reachable")
+                .build();
+        } catch (Exception e) {
+            return Health.down()
+                .withDetail("error", e.getMessage())
+                .build();
+        }
+    }
 }
 ```
 
-### Query Derivation
+### Securing Actuator in Production
 
 ```java
-public interface UserRepository extends JpaRepository<User, Long> {
+@Configuration
+public class ActuatorSecurityConfig {
 
-    // Derived queries (Spring generates implementation)
-    User findByUsername(String username);
-
-    List<User> findByEmailContaining(String email);
-
-    List<User> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
-
-    List<User> findByUsernameAndEmail(String username, String email);
-
-    List<User> findByUsernameOrEmail(String username, String email);
-
-    // With pagination
-    Page<User> findByEmailContaining(String email, Pageable pageable);
-
-    // Count queries
-    long countByEmailContaining(String email);
-
-    // Existence queries
-    boolean existsByUsername(String username);
-
-    // Delete queries
-    void deleteByUsername(String username);
+    @Bean
+    public SecurityFilterChain actuatorSecurity(HttpSecurity http) throws Exception {
+        http
+            .requestMatcher(EndpointRequest.toAnyEndpoint())
+            .authorizeRequests(auth -> auth
+                .requestMatchers(EndpointRequest.to("health", "info")).permitAll()
+                .anyRequest().hasRole("ADMIN")
+            );
+        return http.build();
+    }
 }
 ```
 
-### Custom Queries
+### Change Log Level at Runtime (no restart needed)
 
-```java
-public interface UserRepository extends JpaRepository<User, Long> {
+```bash
+# Check current level
+GET /actuator/loggers/com.example.service
 
-    // JPQL Query
-    @Query("SELECT u FROM User u WHERE u.email = :email")
-    User findByEmailJPQL(@Param("email") String email);
-
-    // Native SQL Query
-    @Query(value = "SELECT * FROM users WHERE email = :email", nativeQuery = true)
-    User findByEmailNative(@Param("email") String email);
-
-    // Update Query
-    @Modifying
-    @Transactional
-    @Query("UPDATE User u SET u.email = :email WHERE u.id = :id")
-    int updateUserEmail(@Param("id") Long id, @Param("email") String email);
-
-    // Complex Join Query
-    @Query("SELECT u FROM User u JOIN u.posts p WHERE p.title LIKE %:keyword%")
-    List<User> findUsersWithPostsContaining(@Param("keyword") String keyword);
-}
+# Change to DEBUG
+POST /actuator/loggers/com.example.service
+Content-Type: application/json
+{"configuredLevel": "DEBUG"}
 ```
 
 ---
 
-## 2.5 Transaction Management
+## 1.10 Profiles, DevTools & Logging
 
-### @Transactional Annotation
+### Profiles — Environment-Specific Config
+
+```yaml
+# application.yml — shared
+spring:
+  application:
+    name: my-app
+
+---
+# application-dev.yml
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb    # in-memory for dev
+
+---
+# application-prod.yml
+spring:
+  datasource:
+    url: jdbc:mysql://prod-server:3306/mydb
+```
+
+Activate via: `spring.profiles.active=dev` in config or `--spring.profiles.active=prod` on startup.
+
+### Spring DevTools
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-devtools</artifactId>
+    <scope>runtime</scope>
+    <optional>true</optional>
+</dependency>
+```
+
+- **Automatic restart**: JVM restarts when classpath files change
+- **LiveReload**: Browser auto-refreshes on static resource changes
+- **Disabled caching**: Template caching disabled in dev (Thymeleaf, Freemarker)
+- **H2 console**: Enabled automatically for H2 datasource
+
+### Logging
+
+Spring Boot uses SLF4J + Logback by default.
+
+```yaml
+logging:
+  level:
+    root: INFO
+    com.example: DEBUG              # your package → DEBUG
+    org.hibernate.SQL: DEBUG        # show SQL
+    org.hibernate.type: TRACE       # show SQL parameters
+  file:
+    name: logs/app.log
+  pattern:
+    console: "%d{HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+```
 
 ```java
 @Service
 public class UserService {
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private EmailService emailService;
-
-    // Transaction boundaries
-    @Transactional
-    public User createUser(User user) {
-        User saved = userRepository.save(user);
-        emailService.sendWelcomeEmail(user.getEmail());
-        return saved;
-        // Transaction commits here if no exception
-        // Rolls back if exception thrown
-    }
-
-    // Read-only optimization
-    @Transactional(readOnly = true)
-    public User getUserById(Long id) {
-        return userRepository.findById(id)
-            .orElseThrow(() -> new UserNotFoundException("User not found"));
-    }
-
-    // Custom transaction attributes
-    @Transactional(
-        propagation = Propagation.REQUIRED,
-        isolation = Isolation.READ_COMMITTED,
-        timeout = 30,
-        rollbackFor = Exception.class
-    )
-    public void complexOperation() {
+    public User getUser(Long id) {
+        log.debug("Fetching user {}", id);
         // ...
     }
 }
 ```
 
-### Transaction Propagation
-
-```
-Propagation Types
-=================
-
-1. REQUIRED (Default)
-   ├─> Use existing transaction
-   └─> Create new if none exists
-
-2. REQUIRES_NEW
-   ├─> Always create new transaction
-   └─> Suspend existing transaction
-
-3. MANDATORY
-   ├─> Must have existing transaction
-   └─> Throw exception if none exists
-
-4. SUPPORTS
-   ├─> Use existing transaction if available
-   └─> Execute non-transactionally if none
-
-5. NOT_SUPPORTED
-   ├─> Execute non-transactionally
-   └─> Suspend existing transaction
-
-6. NEVER
-   ├─> Execute non-transactionally
-   └─> Throw exception if transaction exists
-
-7. NESTED
-   └─> Create nested transaction (savepoint)
-```
-
 ---
 
-## 2.6 Solving N+1 Query Problem
+# 2. Spring REST — Web Layer
 
-### The Problem
-
-```java
-// This causes N+1 queries!
-@GetMapping("/users")
-public List<UserDTO> getAllUsers() {
-    List<User> users = userRepository.findAll();  // 1 query
-
-    return users.stream()
-        .map(user -> new UserDTO(
-            user.getId(),
-            user.getUsername(),
-            user.getPosts().size()  // N queries (one per user)
-        ))
-        .collect(Collectors.toList());
-}
-```
-
-### Solution 1: JOIN FETCH
-
-```java
-public interface UserRepository extends JpaRepository<User, Long> {
-
-    @Query("SELECT u FROM User u LEFT JOIN FETCH u.posts")
-    List<User> findAllWithPosts();
-}
-```
-
-### Solution 2: @EntityGraph
-
-```java
-public interface UserRepository extends JpaRepository<User, Long> {
-
-    @EntityGraph(attributePaths = {"posts"})
-    List<User> findAll();
-
-    @EntityGraph(attributePaths = {"posts", "posts.comments"})
-    User findById(Long id);
-}
-```
-
-### Solution 3: Batch Fetching
-
-```java
-@Entity
-public class User {
-    @OneToMany(mappedBy = "author")
-    @BatchSize(size = 10)  // Fetch in batches of 10
-    private List<Post> posts;
-}
-```
-
----
-
-## 2.7 Pagination and Sorting
-
-```java
-@RestController
-@RequestMapping("/api/users")
-public class UserController {
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @GetMapping
-    public Page<User> getUsers(
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int size,
-        @RequestParam(defaultValue = "id") String sortBy,
-        @RequestParam(defaultValue = "asc") String direction
-    ) {
-        Sort sort = direction.equalsIgnoreCase("asc")
-            ? Sort.by(sortBy).ascending()
-            : Sort.by(sortBy).descending();
-
-        Pageable pageable = PageRequest.of(page, size, sort);
-
-        return userRepository.findAll(pageable);
-    }
-}
-```
-
----
-
-# 3. Spring Web (REST API)
-
-## 3.1 Overview
+## 2.1 Overview
 
 Spring Web MVC provides the infrastructure for building web applications and REST APIs. At its core is the **DispatcherServlet**, which acts as the Front Controller.
 
 ---
 
-## 3.2 Complete Request Flow (Client to Server)
+## 2.2 Complete Request Flow (Client to Server)
 
 ### High-Level Flow
 
@@ -981,7 +994,7 @@ Client Request → Web Server → DispatcherServlet → Controller → Service �
 
 ---
 
-## 3.3 DispatcherServlet Deep Dive
+## 2.3 DispatcherServlet Deep Dive
 
 ### Initialization
 
@@ -1032,7 +1045,7 @@ DispatcherServlet.doDispatch() method:
 
 ---
 
-## 3.4 Building REST APIs
+## 2.4 Building REST APIs
 
 ### REST Controller Structure
 
@@ -1099,7 +1112,7 @@ public class UserController {
 
 ---
 
-## 3.5 Request/Response Handling
+## 2.5 Request/Response Handling
 
 ### Request Binding
 
@@ -1186,7 +1199,7 @@ public class ResponseController {
 
 ---
 
-## 3.6 Exception Handling
+## 2.6 Exception Handling
 
 ### Global Exception Handler
 
@@ -1247,7 +1260,7 @@ class ErrorResponse {
 
 ---
 
-## 3.7 Request Validation
+## 2.7 Request Validation
 
 ```java
 // DTO with validation
@@ -1285,7 +1298,7 @@ public ResponseEntity<UserDTO> createUser(
 
 ---
 
-## 3.8 Content Negotiation
+## 2.8 Content Negotiation
 
 ```java
 @RestController
@@ -1324,7 +1337,7 @@ public class UserController {
 
 ---
 
-## 3.9 Filters vs Interceptors
+## 2.9 Filters vs Interceptors
 
 ### Filter (Servlet Level)
 
@@ -1422,6 +1435,372 @@ Interceptor:
 ├─> Access to Handler (controller method)
 ├─> Can modify ModelAndView
 └─> Use for: authentication, logging, auditing
+```
+
+---
+
+# 3. Spring Data JPA & Hibernate
+
+## 3.1 Overview
+
+Spring Data JPA simplifies database access by providing:
+- Repository abstraction
+- Query derivation from method names
+- Custom query support
+- Transaction management
+- Auditing support
+
+### Architecture
+
+```
+Application Layer
+       ↓
+Service Layer (@Service)
+       ↓
+Repository Interface (extends JpaRepository)
+       ↓
+Spring Data JPA Implementation (Auto-generated)
+       ↓
+JPA Provider (Hibernate)
+       ↓
+JDBC Driver
+       ↓
+Database
+```
+
+---
+
+## 3.2 Entity Mapping
+
+### Basic Entity
+
+```java
+@Entity
+@Table(name = "users")
+public class User {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String username;
+
+    @Column(nullable = false)
+    private String email;
+
+    @CreatedDate
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    private LocalDateTime updatedAt;
+}
+```
+
+---
+
+## 3.3 Relationships
+
+### One-to-Many & Many-to-One
+
+```java
+// One User has Many Posts
+@Entity
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Post> posts = new ArrayList<>();
+
+    // Helper method
+    public void addPost(Post post) {
+        posts.add(post);
+        post.setAuthor(this);
+    }
+}
+
+@Entity
+public class Post {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String title;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User author;
+}
+```
+
+### Many-to-Many
+
+```java
+@Entity
+public class Student {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToMany
+    @JoinTable(
+        name = "student_course",
+        joinColumns = @JoinColumn(name = "student_id"),
+        inverseJoinColumns = @JoinColumn(name = "course_id")
+    )
+    private Set<Course> courses = new HashSet<>();
+}
+
+@Entity
+public class Course {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToMany(mappedBy = "courses")
+    private Set<Student> students = new HashSet<>();
+}
+```
+
+---
+
+## 3.4 Repository Interface
+
+### Built-in Methods
+
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    // Inherited methods:
+    // - save(entity)
+    // - findById(id)
+    // - findAll()
+    // - deleteById(id)
+    // - count()
+    // - existsById(id)
+}
+```
+
+### Query Derivation
+
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+
+    // Derived queries (Spring generates implementation)
+    User findByUsername(String username);
+
+    List<User> findByEmailContaining(String email);
+
+    List<User> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
+    List<User> findByUsernameAndEmail(String username, String email);
+
+    List<User> findByUsernameOrEmail(String username, String email);
+
+    // With pagination
+    Page<User> findByEmailContaining(String email, Pageable pageable);
+
+    // Count queries
+    long countByEmailContaining(String email);
+
+    // Existence queries
+    boolean existsByUsername(String username);
+
+    // Delete queries
+    void deleteByUsername(String username);
+}
+```
+
+### Custom Queries
+
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+
+    // JPQL Query
+    @Query("SELECT u FROM User u WHERE u.email = :email")
+    User findByEmailJPQL(@Param("email") String email);
+
+    // Native SQL Query
+    @Query(value = "SELECT * FROM users WHERE email = :email", nativeQuery = true)
+    User findByEmailNative(@Param("email") String email);
+
+    // Update Query
+    @Modifying
+    @Transactional
+    @Query("UPDATE User u SET u.email = :email WHERE u.id = :id")
+    int updateUserEmail(@Param("id") Long id, @Param("email") String email);
+
+    // Complex Join Query
+    @Query("SELECT u FROM User u JOIN u.posts p WHERE p.title LIKE %:keyword%")
+    List<User> findUsersWithPostsContaining(@Param("keyword") String keyword);
+}
+```
+
+---
+
+## 3.5 Transaction Management
+
+### @Transactional Annotation
+
+```java
+@Service
+public class UserService {
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private EmailService emailService;
+
+    // Transaction boundaries
+    @Transactional
+    public User createUser(User user) {
+        User saved = userRepository.save(user);
+        emailService.sendWelcomeEmail(user.getEmail());
+        return saved;
+        // Transaction commits here if no exception
+        // Rolls back if exception thrown
+    }
+
+    // Read-only optimization
+    @Transactional(readOnly = true)
+    public User getUserById(Long id) {
+        return userRepository.findById(id)
+            .orElseThrow(() -> new UserNotFoundException("User not found"));
+    }
+
+    // Custom transaction attributes
+    @Transactional(
+        propagation = Propagation.REQUIRED,
+        isolation = Isolation.READ_COMMITTED,
+        timeout = 30,
+        rollbackFor = Exception.class
+    )
+    public void complexOperation() {
+        // ...
+    }
+}
+```
+
+### Transaction Propagation
+
+```
+Propagation Types
+=================
+
+1. REQUIRED (Default)
+   ├─> Use existing transaction
+   └─> Create new if none exists
+
+2. REQUIRES_NEW
+   ├─> Always create new transaction
+   └─> Suspend existing transaction
+
+3. MANDATORY
+   ├─> Must have existing transaction
+   └─> Throw exception if none exists
+
+4. SUPPORTS
+   ├─> Use existing transaction if available
+   └─> Execute non-transactionally if none
+
+5. NOT_SUPPORTED
+   ├─> Execute non-transactionally
+   └─> Suspend existing transaction
+
+6. NEVER
+   ├─> Execute non-transactionally
+   └─> Throw exception if transaction exists
+
+7. NESTED
+   └─> Create nested transaction (savepoint)
+```
+
+---
+
+## 3.6 Solving N+1 Query Problem
+
+### The Problem
+
+```java
+// This causes N+1 queries!
+@GetMapping("/users")
+public List<UserDTO> getAllUsers() {
+    List<User> users = userRepository.findAll();  // 1 query
+
+    return users.stream()
+        .map(user -> new UserDTO(
+            user.getId(),
+            user.getUsername(),
+            user.getPosts().size()  // N queries (one per user)
+        ))
+        .collect(Collectors.toList());
+}
+```
+
+### Solution 1: JOIN FETCH
+
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.posts")
+    List<User> findAllWithPosts();
+}
+```
+
+### Solution 2: @EntityGraph
+
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+
+    @EntityGraph(attributePaths = {"posts"})
+    List<User> findAll();
+
+    @EntityGraph(attributePaths = {"posts", "posts.comments"})
+    User findById(Long id);
+}
+```
+
+### Solution 3: Batch Fetching
+
+```java
+@Entity
+public class User {
+    @OneToMany(mappedBy = "author")
+    @BatchSize(size = 10)  // Fetch in batches of 10
+    private List<Post> posts;
+}
+```
+
+---
+
+## 3.7 Pagination and Sorting
+
+```java
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @GetMapping
+    public Page<User> getUsers(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size,
+        @RequestParam(defaultValue = "id") String sortBy,
+        @RequestParam(defaultValue = "asc") String direction
+    ) {
+        Sort sort = direction.equalsIgnoreCase("asc")
+            ? Sort.by(sortBy).ascending()
+            : Sort.by(sortBy).descending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        return userRepository.findAll(pageable);
+    }
+}
 ```
 
 ---
@@ -1651,159 +2030,9 @@ public class UserService {
 
 ---
 
-# 5. Spring Boot Internals
+# 5. Spring Cloud — Service Discovery
 
-## 5.1 Auto-Configuration
-
-### How It Works
-
-```
-Auto-Configuration Process:
-===========================
-
-1. @SpringBootApplication contains @EnableAutoConfiguration
-
-2. @EnableAutoConfiguration imports AutoConfigurationImportSelector
-
-3. Selector reads META-INF/spring.factories from all JARs
-
-4. Finds all AutoConfiguration classes:
-   ├─> DataSourceAutoConfiguration
-   ├─> JpaRepositoriesAutoConfiguration
-   ├─> SecurityAutoConfiguration
-   └─> ... hundreds more
-
-5. Each @Configuration class has @Conditional annotations:
-   @ConditionalOnClass - Only if class present in classpath
-   @ConditionalOnBean - Only if bean exists
-   @ConditionalOnProperty - Only if property set
-   @ConditionalOnMissingBean - Only if bean doesn't exist
-
-6. Spring evaluates conditions and loads matching configurations
-```
-
-### Example Auto-Configuration
-
-```java
-@Configuration
-@ConditionalOnClass({DataSource.class, EmbeddedDatabaseType.class})
-@ConditionalOnMissingBean(DataSource.class)
-@EnableConfigurationProperties(DataSourceProperties.class)
-public class DataSourceAutoConfiguration {
-
-    @Bean
-    @ConditionalOnProperty(prefix = "spring.datasource", name = "url")
-    public DataSource dataSource(DataSourceProperties properties) {
-        return properties.initializeDataSourceBuilder().build();
-    }
-}
-```
-
----
-
-## 5.2 Embedded Server
-
-### Tomcat Startup
-
-```
-Embedded Tomcat Initialization:
-================================
-
-1. ServletWebServerApplicationContext created
-
-2. ServletWebServerFactory bean detected
-   └─> TomcatServletWebServerFactory (default)
-
-3. getWebServer() called
-   ├─> Create Tomcat instance
-   ├─> Configure connector (port, protocol)
-   ├─> Add context (webapp context)
-   └─> Register DispatcherServlet
-
-4. Start Tomcat
-   └─> Tomcat listens on configured port (8080 default)
-
-5. Application ready
-   └─> Log: "Tomcat started on port(s): 8080 (http)"
-```
-
-### Configuration
-
-```yaml
-server:
-  port: 8080
-  servlet:
-    context-path: /api
-  tomcat:
-    threads:
-      max: 200
-      min-spare: 10
-    connection-timeout: 20000
-    max-connections: 8192
-```
-
----
-
-## 5.3 Multi-Threading Model
-
-```
-Request Handling Model:
-=======================
-
-Tomcat Thread Pool (default: 200 threads)
-    ├─> Thread 1 → Request A → DispatcherServlet → Controller → Service → Repository
-    ├─> Thread 2 → Request B → DispatcherServlet → Controller → Service → Repository
-    ├─> Thread 3 → Request C → DispatcherServlet → Controller → Service → Repository
-    └─> ...
-
-Key Points:
------------
-1. One thread per request (thread-per-request model)
-2. Thread is blocked during entire request processing
-3. Singleton beans must be thread-safe
-4. Request-scoped beans are thread-local
-5. @Transactional uses ThreadLocal for transaction context
-```
-
-### Thread Safety
-
-```java
-// Thread-safe (Singleton, stateless)
-@Service
-public class UserService {
-    private final UserRepository repository;  // Safe: immutable reference
-
-    public User getUser(Long id) {
-        return repository.findById(id).orElseThrow();
-    }
-}
-
-// NOT thread-safe (Singleton with mutable state)
-@Service
-public class CounterService {
-    private int count = 0;  // DANGER: shared mutable state
-
-    public void increment() {
-        count++;  // Race condition!
-    }
-}
-
-// Fixed with AtomicInteger
-@Service
-public class CounterService {
-    private final AtomicInteger count = new AtomicInteger(0);
-
-    public void increment() {
-        count.incrementAndGet();  // Thread-safe
-    }
-}
-```
-
----
-
-# 6. Microservices with Spring Cloud
-
-## 6.1 Service Discovery (Eureka)
+## 5.1 Service Discovery (Eureka)
 
 ### Eureka Server
 
@@ -1854,7 +2083,9 @@ eureka:
 
 ---
 
-## 6.2 API Gateway
+# 6. Spring Cloud — API Gateway
+
+## 6.1 API Gateway Setup
 
 ```java
 @SpringBootApplication
@@ -1887,7 +2118,9 @@ spring:
 
 ---
 
-## 6.3 Circuit Breaker (Resilience4j)
+# 7. Spring Cloud — Resilience & Tracing
+
+## 7.1 Circuit Breaker (Resilience4j)
 
 ```java
 @Service
@@ -1923,7 +2156,8 @@ resilience4j:
 
 ---
 
-## 6.4 Distributed Tracing
+
+## 7.2 Distributed Tracing (Sleuth + Zipkin)
 
 ```yaml
 # Sleuth + Zipkin configuration
@@ -1936,292 +2170,7 @@ spring:
 ```
 
 ---
-
-# 7. Performance & Best Practices
-
-## 7.1 Performance Optimization
-
-### Database Optimization
-
-```java
-// 1. Use pagination
-Page<User> users = userRepository.findAll(PageRequest.of(0, 20));
-
-// 2. Use projections
-interface UserSummary {
-    String getUsername();
-    String getEmail();
-}
-List<UserSummary> findAllBy();  // Only select needed columns
-
-// 3. Use @EntityGraph to avoid N+1
-@EntityGraph(attributePaths = {"posts", "comments"})
-List<User> findAll();
-
-// 4. Use batch operations
-userRepository.saveAll(users);  // Batch insert
-
-// 5. Use native queries for complex operations
-@Query(value = "UPDATE users SET status = 'active' WHERE created_at > ?1", nativeQuery = true)
-@Modifying
-void activateRecentUsers(LocalDateTime since);
-```
-
-### Caching
-
-```java
-@Configuration
-@EnableCaching
-public class CacheConfig {
-
-    @Bean
-    public CacheManager cacheManager() {
-        return new ConcurrentMapCacheManager("users", "products");
-    }
-}
-
-@Service
-public class UserService {
-
-    @Cacheable("users")
-    public User getUserById(Long id) {
-        return userRepository.findById(id).orElseThrow();
-    }
-
-    @CachePut(value = "users", key = "#user.id")
-    public User updateUser(User user) {
-        return userRepository.save(user);
-    }
-
-    @CacheEvict(value = "users", key = "#id")
-    public void deleteUser(Long id) {
-        userRepository.deleteById(id);
-    }
-}
-```
-
-### Async Processing
-
-```java
-@Configuration
-@EnableAsync
-public class AsyncConfig {
-
-    @Bean
-    public Executor taskExecutor() {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(5);
-        executor.setMaxPoolSize(10);
-        executor.setQueueCapacity(100);
-        executor.setThreadNamePrefix("async-");
-        executor.initialize();
-        return executor;
-    }
-}
-
-@Service
-public class EmailService {
-
-    @Async
-    public CompletableFuture<Void> sendEmail(String to, String subject, String body) {
-        // Send email asynchronously
-        return CompletableFuture.completedFuture(null);
-    }
-}
-```
-
----
-
-## 7.2 Best Practices
-
-### Layered Architecture
-
-```
-Presentation Layer (@RestController)
-    ↓
-Service Layer (@Service)
-    ↓
-Repository Layer (@Repository)
-    ↓
-Database
-```
-
-### DTO Pattern
-
-```java
-// Entity (internal)
-@Entity
-public class User {
-    @Id
-    private Long id;
-    private String username;
-    private String password;  // Never expose!
-}
-
-// DTO (external)
-public class UserDTO {
-    private Long id;
-    private String username;
-    // No password field
-}
-
-// Mapper
-@Component
-public class UserMapper {
-    public UserDTO toDTO(User user) {
-        return new UserDTO(user.getId(), user.getUsername());
-    }
-}
-
-// Controller
-@RestController
-public class UserController {
-
-    @GetMapping("/users/{id}")
-    public UserDTO getUser(@PathVariable Long id) {
-        User user = userService.getUserById(id);
-        return userMapper.toDTO(user);  // Never return entity directly
-    }
-}
-```
-
-### Exception Handling
-
-```java
-// Custom exceptions
-public class UserNotFoundException extends RuntimeException {
-    public UserNotFoundException(String message) {
-        super(message);
-    }
-}
-
-// Global handler
-@RestControllerAdvice
-public class GlobalExceptionHandler {
-
-    @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(UserNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-            .body(new ErrorResponse(ex.getMessage()));
-    }
-}
-```
-
-### Configuration Properties
-
-```java
-@ConfigurationProperties(prefix = "app")
-@Validated
-public class AppProperties {
-
-    @NotBlank
-    private String name;
-
-    @Min(1000)
-    @Max(9999)
-    private int port;
-
-    private Security security;
-
-    public static class Security {
-        @NotBlank
-        private String jwtSecret;
-
-        @Min(60000)
-        private long jwtExpiration;
-    }
-}
-```
-
----
-
-## 7.3 Common Mistakes to Avoid
-
-```java
-// ❌ BAD: Calling repository from controller
-@RestController
-public class UserController {
-    @Autowired
-    private UserRepository repository;  // BAD!
-}
-
-// ✅ GOOD: Use service layer
-@RestController
-public class UserController {
-    @Autowired
-    private UserService service;  // GOOD!
-}
-
-// ❌ BAD: Returning entities
-@GetMapping("/users/{id}")
-public User getUser(@PathVariable Long id) {
-    return userRepository.findById(id).orElseThrow();
-}
-
-// ✅ GOOD: Return DTOs
-@GetMapping("/users/{id}")
-public UserDTO getUser(@PathVariable Long id) {
-    return userService.getUserById(id);  // Service returns DTO
-}
-
-// ❌ BAD: Not using @Transactional for write operations
-public void updateUser(User user) {
-    userRepository.save(user);
-    emailService.sendEmail(user.getEmail());
-}
-
-// ✅ GOOD: Use @Transactional
-@Transactional
-public void updateUser(User user) {
-    userRepository.save(user);
-    emailService.sendEmail(user.getEmail());
-    // Rolls back if email fails
-}
-
-// ❌ BAD: Hardcoded values
-String url = "http://localhost:8080/api";
-
-// ✅ GOOD: Use properties
-@Value("${app.api.url}")
-private String apiUrl;
-```
-
----
-
-## Quick Reference
-
-### Common Annotations
-
-| Annotation | Purpose | Layer |
-|-----------|---------|-------|
-| `@SpringBootApplication` | Main application class | Application |
-| `@RestController` | REST API controller | Web |
-| `@Service` | Business logic | Service |
-| `@Repository` | Data access | Persistence |
-| `@Entity` | JPA entity | Domain |
-| `@Transactional` | Transaction boundary | Service |
-| `@Autowired` | Dependency injection | Any |
-| `@Configuration` | Java configuration | Configuration |
-| `@ConfigurationProperties` | Bind properties | Configuration |
-
-### HTTP Status Codes
-
-| Code | Meaning | Usage |
-|------|---------|-------|
-| 200 | OK | Successful GET, PUT |
-| 201 | Created | Successful POST |
-| 204 | No Content | Successful DELETE |
-| 400 | Bad Request | Validation error |
-| 401 | Unauthorized | Authentication required |
-| 403 | Forbidden | No permission |
-| 404 | Not Found | Resource not found |
-| 500 | Internal Server Error | Server error |
-
----
-
----
-
-# 8. How a Microservice Project Works — Complete Architecture
+# 8. Microservice Architecture
 
 ## 8.1 Monolith vs Microservices
 
@@ -3010,6 +2959,290 @@ public UserV1DTO getUserV1(@PathVariable Long id) { }
 | Rate limiting | API Gateway (Spring Cloud Gateway) |
 | Secret management | HashiCorp Vault, AWS Secrets Manager |
 | Slow inter-service calls | Caching (Redis), Async messaging (Kafka) |
+
+---
+
+# 9. Performance & Best Practices
+
+## 9.1 Performance Optimization
+
+### Database Optimization
+
+```java
+// 1. Use pagination
+Page<User> users = userRepository.findAll(PageRequest.of(0, 20));
+
+// 2. Use projections
+interface UserSummary {
+    String getUsername();
+    String getEmail();
+}
+List<UserSummary> findAllBy();  // Only select needed columns
+
+// 3. Use @EntityGraph to avoid N+1
+@EntityGraph(attributePaths = {"posts", "comments"})
+List<User> findAll();
+
+// 4. Use batch operations
+userRepository.saveAll(users);  // Batch insert
+
+// 5. Use native queries for complex operations
+@Query(value = "UPDATE users SET status = 'active' WHERE created_at > ?1", nativeQuery = true)
+@Modifying
+void activateRecentUsers(LocalDateTime since);
+```
+
+### Caching
+
+```java
+@Configuration
+@EnableCaching
+public class CacheConfig {
+
+    @Bean
+    public CacheManager cacheManager() {
+        return new ConcurrentMapCacheManager("users", "products");
+    }
+}
+
+@Service
+public class UserService {
+
+    @Cacheable("users")
+    public User getUserById(Long id) {
+        return userRepository.findById(id).orElseThrow();
+    }
+
+    @CachePut(value = "users", key = "#user.id")
+    public User updateUser(User user) {
+        return userRepository.save(user);
+    }
+
+    @CacheEvict(value = "users", key = "#id")
+    public void deleteUser(Long id) {
+        userRepository.deleteById(id);
+    }
+}
+```
+
+### Async Processing
+
+```java
+@Configuration
+@EnableAsync
+public class AsyncConfig {
+
+    @Bean
+    public Executor taskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(5);
+        executor.setMaxPoolSize(10);
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("async-");
+        executor.initialize();
+        return executor;
+    }
+}
+
+@Service
+public class EmailService {
+
+    @Async
+    public CompletableFuture<Void> sendEmail(String to, String subject, String body) {
+        // Send email asynchronously
+        return CompletableFuture.completedFuture(null);
+    }
+}
+```
+
+---
+
+## 9.2 Best Practices
+
+### Layered Architecture
+
+```
+Presentation Layer (@RestController)
+    ↓
+Service Layer (@Service)
+    ↓
+Repository Layer (@Repository)
+    ↓
+Database
+```
+
+### DTO Pattern
+
+```java
+// Entity (internal)
+@Entity
+public class User {
+    @Id
+    private Long id;
+    private String username;
+    private String password;  // Never expose!
+}
+
+// DTO (external)
+public class UserDTO {
+    private Long id;
+    private String username;
+    // No password field
+}
+
+// Mapper
+@Component
+public class UserMapper {
+    public UserDTO toDTO(User user) {
+        return new UserDTO(user.getId(), user.getUsername());
+    }
+}
+
+// Controller
+@RestController
+public class UserController {
+
+    @GetMapping("/users/{id}")
+    public UserDTO getUser(@PathVariable Long id) {
+        User user = userService.getUserById(id);
+        return userMapper.toDTO(user);  // Never return entity directly
+    }
+}
+```
+
+### Exception Handling
+
+```java
+// Custom exceptions
+public class UserNotFoundException extends RuntimeException {
+    public UserNotFoundException(String message) {
+        super(message);
+    }
+}
+
+// Global handler
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(UserNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(new ErrorResponse(ex.getMessage()));
+    }
+}
+```
+
+### Configuration Properties
+
+```java
+@ConfigurationProperties(prefix = "app")
+@Validated
+public class AppProperties {
+
+    @NotBlank
+    private String name;
+
+    @Min(1000)
+    @Max(9999)
+    private int port;
+
+    private Security security;
+
+    public static class Security {
+        @NotBlank
+        private String jwtSecret;
+
+        @Min(60000)
+        private long jwtExpiration;
+    }
+}
+```
+
+---
+
+## 9.3 Common Mistakes to Avoid
+
+```java
+// ❌ BAD: Calling repository from controller
+@RestController
+public class UserController {
+    @Autowired
+    private UserRepository repository;  // BAD!
+}
+
+// ✅ GOOD: Use service layer
+@RestController
+public class UserController {
+    @Autowired
+    private UserService service;  // GOOD!
+}
+
+// ❌ BAD: Returning entities
+@GetMapping("/users/{id}")
+public User getUser(@PathVariable Long id) {
+    return userRepository.findById(id).orElseThrow();
+}
+
+// ✅ GOOD: Return DTOs
+@GetMapping("/users/{id}")
+public UserDTO getUser(@PathVariable Long id) {
+    return userService.getUserById(id);  // Service returns DTO
+}
+
+// ❌ BAD: Not using @Transactional for write operations
+public void updateUser(User user) {
+    userRepository.save(user);
+    emailService.sendEmail(user.getEmail());
+}
+
+// ✅ GOOD: Use @Transactional
+@Transactional
+public void updateUser(User user) {
+    userRepository.save(user);
+    emailService.sendEmail(user.getEmail());
+    // Rolls back if email fails
+}
+
+// ❌ BAD: Hardcoded values
+String url = "http://localhost:8080/api";
+
+// ✅ GOOD: Use properties
+@Value("${app.api.url}")
+private String apiUrl;
+```
+
+---
+
+## Quick Reference
+
+### Common Annotations
+
+| Annotation | Purpose | Layer |
+|-----------|---------|-------|
+| `@SpringBootApplication` | Main application class | Application |
+| `@RestController` | REST API controller | Web |
+| `@Service` | Business logic | Service |
+| `@Repository` | Data access | Persistence |
+| `@Entity` | JPA entity | Domain |
+| `@Transactional` | Transaction boundary | Service |
+| `@Autowired` | Dependency injection | Any |
+| `@Configuration` | Java configuration | Configuration |
+| `@ConfigurationProperties` | Bind properties | Configuration |
+
+### HTTP Status Codes
+
+| Code | Meaning | Usage |
+|------|---------|-------|
+| 200 | OK | Successful GET, PUT |
+| 201 | Created | Successful POST |
+| 204 | No Content | Successful DELETE |
+| 400 | Bad Request | Validation error |
+| 401 | Unauthorized | Authentication required |
+| 403 | Forbidden | No permission |
+| 404 | Not Found | Resource not found |
+| 500 | Internal Server Error | Server error |
+
+---
 
 ---
 
